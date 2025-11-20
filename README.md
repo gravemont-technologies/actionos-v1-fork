@@ -179,13 +179,18 @@ If your organization role is correct, check API key capabilities.
 
 ## Bug & Error Tracking
 
-All bugs fixed and errors encountered are documented in `docs/bugs-and-errors.md`. This includes:
+All bugs fixed and errors encountered are documented in `docs/errors.md` (also accessible as `docs/bugs-and-errors.md`). This includes:
+- Comprehensive error tracking with unique error IDs (ERR-YYYYMMDD-XXX format)
+- Fix attempts tracked with success/failure status
 - Bug fixes with solutions and testing strategies
 - Terminal errors with resolutions
 - Repeated error patterns and monitoring strategies
 - Proactive monitoring and prevention measures
+- Statistics and trend analysis
 
 To log a new error:
 - **Windows (PowerShell):** `.\scripts\track-error.ps1 "Error description" "Component" "Severity"`
 - **Unix/Mac:** `./scripts/track-error.sh "Error description" "Component" "Severity"`
+
+For detailed usage instructions and error tracking guidelines, see `docs/errors.md`.
 
