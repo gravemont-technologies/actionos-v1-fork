@@ -34,27 +34,27 @@ interface EnvConfig {
  * Throws error if required variables are missing
  */
 function validateEnv(): EnvConfig {
-  const nodeEnv = (.env.NODE_ENV || "development") as Environment;
+  const nodeEnv = (process.env.NODE_ENV || "development") as Environment;
   const isProduction = nodeEnv === "production";
   const isDevelopment = nodeEnv === "development";
 
   const errors: string[] = [];
 
   // Required in all environments
-  if (!.env.SUPABASE_URL) {
+  if (!process.env.SUPABASE_URL) {
     errors.push("SUPABASE_URL is required");
   }
-  if (!.env.SUPABASE_SERVICE_ROLE_KEY) {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     errors.push("SUPABASE_SERVICE_ROLE_KEY is required");
   }
 
   // Required in production, optional in development
-  if (isProduction && !.env.CLERK_SECRET_KEY) {
+  if (isProduction && !process.env.CLERK_SECRET_KEY) {
     errors.push("CLERK_SECRET_KEY is required in production");
   }
 
   // Optional but recommended
-  if (!.env.OPENAI_API_KEY && isProduction) {
+  if (!process.env.OPENAI_API_KEY && isProduction) {
     errors.push("OPENAI_API_KEY is recommended in production (will use mock provider)");
   }
 
@@ -67,16 +67,16 @@ function validateEnv(): EnvConfig {
 
   return {
     NODE_ENV: nodeEnv,
-    PORT: Number(.env.PORT) || 3001,
-    FRONTEND_URL: .env.FRONTEND_URL || "http://localhost:3000",
+    PORT: Number(process.env.PORT) || 3001,
+    FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:3000",
 
-    SUPABASE_URL: .env.SUPABASE_URL!,
-    SUPABASE_SERVICE_ROLE_KEY: .env.SUPABASE_SERVICE_ROLE_KEY!,
+    SUPABASE_URL: process.env.SUPABASE_URL!,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY!,
 
-    CLERK_SECRET_KEY: .env.CLERK_SECRET_KEY || null,
+    CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY || null,
 
-    OPENAI_API_KEY: .env.OPENAI_API_KEY || null,
-    OPENAI_MODEL: .env.OPENAI_MODEL || "gpt-4o-mini"
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY || null,
+    OPENAI_MODEL: process.env.OPENAI_MODEL || "gpt-4o-mini"
   };
 }
 
