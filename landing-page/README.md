@@ -1,4 +1,4 @@
-# ActionEngine - Get Exact Actions in 60s
+# ActionOS - Get Exact Actions in 60s
 
 Performance-first React landing page with Tailwind CSS and Clerk authentication.
 
