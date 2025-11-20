@@ -1,0 +1,165 @@
+[
+  {
+    "id": "cognitive_style",
+    "prompt": "When you take action, which mode feels most natural?",
+    "options": [
+      {
+        "id": "systematic",
+        "label": "Systematic: I follow clearly-defined steps",
+        "tags": ["SYSTEMATIC", "PRECISION"],
+        "insight": "We will default to structured checklists for you.",
+        "baselineAdjustments": { "ipp": 2, "but": 1 }
+      },
+      {
+        "id": "rapid",
+        "label": "Rapid: I jump in and iterate",
+        "tags": ["ACTION_BIASED", "FAST_FEEDBACK"],
+        "insight": "Expect quick experiments with tight loops.",
+        "baselineAdjustments": { "ipp": 1, "but": 3 }
+      },
+      {
+        "id": "strategic",
+        "label": "Strategic: I zoom out before acting",
+        "tags": ["STRATEGIC", "HIGH_LEVERAGE"],
+        "insight": "We will surface leverage points before tasks.",
+        "baselineAdjustments": { "ipp": 3, "but": 0 }
+      }
+    ]
+  },
+  {
+    "id": "risk_tolerance",
+    "prompt": "Pick the risk tolerance that best describes you right now.",
+    "options": [
+      {
+        "id": "low",
+        "label": "Low — prefer certainty and reversible moves",
+        "tags": ["LOW_RISK", "MEASURE_TWICE"],
+        "insight": "Recommendations will prioritize reversibility.",
+        "baselineAdjustments": { "ipp": 0, "but": -1 }
+      },
+      {
+        "id": "medium",
+        "label": "Medium — balanced calculated bets",
+        "tags": ["MEDIUM_RISK", "CALIBRATED"],
+        "insight": "We’ll mix safeguards with bold shots.",
+        "baselineAdjustments": { "ipp": 1, "but": 1 }
+      },
+      {
+        "id": "high",
+        "label": "High — I move fast and adjust on the fly",
+        "tags": ["HIGH_RISK", "PIVOT_READY"],
+        "insight": "We’ll bias toward fast experiments with guardrails.",
+        "baselineAdjustments": { "ipp": 2, "but": 2 }
+      }
+    ]
+  },
+  {
+    "id": "peak_hours",
+    "prompt": "When is your peak execution block?",
+    "options": [
+      {
+        "id": "morning",
+        "label": "Morning (before noon)",
+        "tags": ["PEAK_AM", "PREP_FIRST"],
+        "insight": "We’ll queue priority steps for mornings.",
+        "baselineAdjustments": { "ipp": 2, "but": 1 }
+      },
+      {
+        "id": "afternoon",
+        "label": "Afternoon",
+        "tags": ["PEAK_PM", "ENERGY_PACING"],
+        "insight": "We’ll stage warm-up tasks earlier in the day.",
+        "baselineAdjustments": { "ipp": 1, "but": 1 }
+      },
+      {
+        "id": "night",
+        "label": "Night / late hours",
+        "tags": ["PEAK_NIGHT", "FOCUS_SPRINT"],
+        "insight": "Expect evening reminders for Step-1.",
+        "baselineAdjustments": { "ipp": 0, "but": 2 }
+      }
+    ]
+  },
+  {
+    "id": "friction_point",
+    "prompt": "What stalls you most often?",
+    "options": [
+      {
+        "id": "context_switching",
+        "label": "Context switching & interruptions",
+        "tags": ["NEEDS_FOCUS", "PROTECT_CALENDAR"],
+        "insight": "We’ll compress actions into single-focus blocks.",
+        "baselineAdjustments": { "ipp": -1, "but": -2 }
+      },
+      {
+        "id": "unclear_next_step",
+        "label": "Not knowing the exact next step",
+        "tags": ["NEEDS_CLARITY", "GUIDED_STEPS"],
+        "insight": "Expect hyper-specific, timeboxed instructions.",
+        "baselineAdjustments": { "ipp": -2, "but": -1 }
+      },
+      {
+        "id": "accountability",
+        "label": "Weak accountability / follow-through",
+        "tags": ["NEEDS_ACCOUNTABILITY", "NUDGE_REQUIRED"],
+        "insight": "We’ll embed accountability nudges and reporting.",
+        "baselineAdjustments": { "ipp": -1, "but": -2 }
+      }
+    ]
+  },
+  {
+    "id": "top_strength",
+    "prompt": "Which strength is most reliable for you?",
+    "options": [
+      {
+        "id": "ops",
+        "label": "Operational rigor & delivery",
+        "tags": ["OPERATOR", "PROCESS_DRIVEN"],
+        "insight": "We’ll lean on ops strengths for leverage.",
+        "baselineAdjustments": { "ipp": 3, "but": 1 }
+      },
+      {
+        "id": "product",
+        "label": "Product sense & insight synthesis",
+        "tags": ["PRODUCT_MIND", "SYNTHESIS"],
+        "insight": "Expect insight-heavy, data-anchored prompts.",
+        "baselineAdjustments": { "ipp": 2, "but": 2 }
+      },
+      {
+        "id": "relationships",
+        "label": "Relationships & stakeholder influence",
+        "tags": ["RELATIONAL", "ASC_ACCELERATOR"],
+        "insight": "We’ll highlight impact through influence loops.",
+        "baselineAdjustments": { "ipp": 2, "but": 1 }
+      }
+    ]
+  },
+  {
+    "id": "execution_cadence",
+    "prompt": "How many focused Step-1 style actions can you commit weekly?",
+    "options": [
+      {
+        "id": "one",
+        "label": "1 per week",
+        "tags": ["LOW_CADENCE", "SUSTAINABLE"],
+        "insight": "We’ll defend a single guaranteed win weekly.",
+        "baselineAdjustments": { "ipp": 0, "but": -1 }
+      },
+      {
+        "id": "three",
+        "label": "2–3 per week",
+        "tags": ["MEDIUM_CADENCE", "CONSISTENT"],
+        "insight": "We’ll queue mid-week calibrations.",
+        "baselineAdjustments": { "ipp": 1, "but": 2 }
+      },
+      {
+        "id": "daily",
+        "label": "Daily Step-1 blocks",
+        "tags": ["HIGH_CADENCE", "SPRINT_MODE"],
+        "insight": "We’ll send daily 15-minute sprints.",
+        "baselineAdjustments": { "ipp": 2, "but": 3 }
+      }
+    ]
+  }
+]
+

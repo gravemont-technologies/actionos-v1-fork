@@ -1,0 +1,172 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Import design tokens */
+@import './ui/styles/design-tokens.css';
+
+/* Performance-first design system with Inter font and tight palette */
+
+@layer base {
+  :root {
+    /* Light mode - tight palette for WCAG contrast */
+    --background: 219 28% 96%; /* surface #E6EEF6 converted to HSL */
+    --foreground: 222 47% 11%; /* primary #0F172A */
+
+    --card: 219 28% 96%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 222 47% 11%; /* #0F172A */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 219 28% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 219 28% 92%;
+    --muted-foreground: 222 20% 40%;
+
+    --accent: 31 95% 45%; /* #D97706 */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 219 20% 85%;
+    --input: 219 20% 85%;
+    --ring: 31 95% 45%;
+
+    --radius: 1rem;
+    
+    /* Custom design tokens */
+    --glass: rgba(255, 255, 255, 0.04);
+    --surface: 219 28% 96%;
+    --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    /* Dark mode - maintain contrast ratios */
+    --background: 222 47% 11%; /* primary dark */
+    --foreground: 219 28% 96%;
+
+    --card: 222 44% 14%;
+    --card-foreground: 219 28% 96%;
+
+    --popover: 222 44% 14%;
+    --popover-foreground: 219 28% 96%;
+
+    --primary: 219 28% 96%;
+    --primary-foreground: 222 47% 11%;
+
+    --secondary: 222 40% 18%;
+    --secondary-foreground: 219 28% 96%;
+
+    --muted: 222 40% 18%;
+    --muted-foreground: 219 15% 70%;
+
+    --accent: 31 95% 45%; /* keep accent consistent */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 222 35% 22%;
+    --input: 222 35% 22%;
+    --ring: 31 95% 45%;
+
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: var(--font-body);
+    background: var(--bg-void);
+    color: var(--text-primary);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold;
+  }
+
+  /* Focus rings for accessibility */
+  *:focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent;
+  }
+}
+
+/* Error message display */
+.error-message {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  border: 1px solid hsl(var(--destructive));
+  border-radius: var(--radius);
+  background-color: hsl(var(--destructive) / 0.1);
+}
+
+.error-header {
+  margin-bottom: 0.75rem;
+  color: hsl(var(--destructive));
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.error-content {
+  margin: 0;
+  padding: 0.75rem;
+  background-color: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) * 0.5);
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-x: auto;
+  color: hsl(var(--foreground));
+}
+
+/* Spinner animation for loading states */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+

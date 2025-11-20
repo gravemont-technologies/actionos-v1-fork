@@ -1,0 +1,36 @@
+name: QA
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  smoke-and-lhci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Build client
+        run: npm run build:client
+      - name: Start server
+        run: npm run dev:server &
+      - name: Start client
+        run: npm run dev:client &
+      - name: Wait for servers
+        run: |
+          npx --yes wait-on@7.2.0 --timeout 90000 http://localhost:3000
+          for i in {1..10}; do
+            curl -sSf http://localhost:3001/api/health && break || sleep 3
+          done
+      - name: API smoke tests
+        run: STRICT=1 npm run test:smoke
+      - name: Lighthouse (autorun)
+        run: npx --yes @lhci/cli@0.13.0 autorun
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+
+
