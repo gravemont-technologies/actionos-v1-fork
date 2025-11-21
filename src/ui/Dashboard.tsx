@@ -12,6 +12,7 @@ import { StreakBar } from "./components/StreakBar.js";
 import { MarkDoneOverlay } from "./components/MarkDoneOverlay.js";
 import { DeltaBadge } from "./components/DeltaBadge.js";
 import { Sparkline } from "./components/Sparkline.js";
+import { SupportPopup } from "./components/SupportPopup.js";
 
 /**
  * Type for insight data from API (matches CacheEntry structure)
@@ -149,6 +150,7 @@ export function Dashboard() {
   }>>([]);
   const [loadingSparkline, setLoadingSparkline] = useState(false);
   const [projectCount, setProjectCount] = useState<number>(0);
+  const [showSupportPopup, setShowSupportPopup] = useState(false);
   const navigate = useNavigate();
   const fetchingRef = useRef(false); // Prevent parallel calls
   const abortControllerRef = useRef<AbortController | null>(null); // Cancel requests on unmount/dependency change
@@ -407,6 +409,20 @@ export function Dashboard() {
     };
   }, [profileId, userId, fetchDashboardData]); // fetchDashboardData is stable because deps are primitives
 
+  // Monitor projectCount and trigger support popup at 3 projects (once per session)
+  useEffect(() => {
+    const hasSeenPopup = sessionStorage.getItem('actionos_support_popup_shown');
+    if (projectCount === 3 && !hasSeenPopup && !showSupportPopup) {
+      // Wait 3 seconds before showing popup to let user appreciate their saved project
+      const timer = setTimeout(() => {
+        setShowSupportPopup(true);
+        sessionStorage.setItem('actionos_support_popup_shown', 'true');
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [projectCount, showSupportPopup]);
+
   const handleSubmit = async () => {
     if (!activeStep || !profileId) {
       return;
@@ -512,33 +528,38 @@ export function Dashboard() {
         paddingTop: "calc(2rem + 48px)" // Account for fixed StreakBar
       }}>
         <div style={{
-          padding: "1.5rem 2rem",
+          padding: "1rem 1.5rem",
           marginBottom: "2rem",
-          background: "linear-gradient(135deg, #dc2626 0%, #f97316 100%)",
-          border: "3px solid #fbbf24",
-          borderRadius: "8px",
+          background: "linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(245, 158, 11, 0.1) 100%)",
+          border: "2px solid rgba(251, 191, 36, 0.3)",
+          borderRadius: "6px",
           textAlign: "center",
-          boxShadow: "0 4px 20px rgba(220, 38, 38, 0.3)"
+          boxShadow: "0 0 20px rgba(251, 191, 36, 0.15)"
         }}>
-          <h1 style={{
-            fontSize: "2.5rem",
-            fontWeight: 900,
-            color: "#FFFFFF",
-            margin: 0,
-            textTransform: "uppercase",
-            letterSpacing: "0.1em",
-            textShadow: "2px 2px 4px rgba(0,0,0,0.3)"
-          }}>
-            🚧 COMING SOON! 🚧
-          </h1>
-          <p style={{
-            fontSize: "1rem",
-            color: "#FEF3C7",
-            margin: "0.5rem 0 0 0",
-            fontWeight: 600
-          }}>
-            Dashboard features are under construction
-          </p>
+          <a 
+            href="https://www.paypal.com/qrcodes/p2pqrc/MSFV7T2E9VWUU"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontSize: "1.1rem",
+              fontWeight: 700,
+              color: "#fbbf24",
+              textDecoration: "none",
+              display: "inline-block",
+              transition: "all 0.2s ease",
+              textShadow: "0 0 10px rgba(251, 191, 36, 0.3)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.textShadow = "0 0 20px rgba(251, 191, 36, 0.6)";
+              e.currentTarget.style.color = "#f59e0b";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.textShadow = "0 0 10px rgba(251, 191, 36, 0.3)";
+              e.currentTarget.style.color = "#fbbf24";
+            }}
+          >
+            ❤️ Love what we're building? Make it unstoppable—support us.
+          </a>
         </div>
         <header>
           <h2>Action Guarantee Dashboard</h2>
@@ -887,6 +908,11 @@ export function Dashboard() {
           }}
         />
       )}
+      
+      <SupportPopup 
+        open={showSupportPopup} 
+        onOpenChange={setShowSupportPopup} 
+      />
     </section>
     </>
   );
