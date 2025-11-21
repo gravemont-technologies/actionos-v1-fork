@@ -1,26 +1,15 @@
 /* ============================================================================
  * DESIGN TOKENS - Precision Instrument UI
- * Pitch-black background, electric-cyan accents, zero rounded corners
+ * Theme-aware design system with electric-cyan accents
  * ============================================================================ */
 
 :root {
-  /* Color Palette */
-  --bg-void: #000000;           /* Pitch-black background */
-  --accent-cyan: #00FFFF;       /* Electric-cyan accents */
-  --text-ghost: #FFFFFF;        /* Ghost-white inactive states */
-  --text-primary: #FFFFFF;       /* Primary text */
-  --text-secondary: #CCCCCC;    /* Secondary text */
-  
   /* Typography */
   --font-body: 'Inter Tight', 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'Geist Mono', 'SF Mono', 'Monaco', 'Consolas', monospace;
   
-  /* Geometry */
-  --radius: 0;                  /* Zero rounded corners */
-  
-  /* Effects */
-  --glow-cyan: 0 0 20px #00FFFF;
-  --glow-cyan-bright: 0 0 30px #00FFFF;
+  /* Geometry - Rounded corners for modern look */
+  --radius: 0.5rem;
   
   /* Transitions */
   --transition-fast: 0.15s ease;
@@ -28,13 +17,21 @@
   --transition-slow: 0.3s ease;
 }
 
-/* Global border-radius override - zero rounded corners everywhere */
-* {
-  border-radius: var(--radius) !important;
+.dark {
+  /* Dark mode specific tokens */
+  --accent-cyan: #00FFFF;       /* Electric-cyan accents */
+  --text-ghost: #FFFFFF;        /* Ghost-white inactive states */
+  --glow-cyan: 0 0 20px #00FFFF;
+  --glow-cyan-bright: 0 0 30px #00FFFF;
 }
 
-/* Exception: Only where explicitly needed (document in comments) */
-/* Add exceptions here if absolutely necessary */
+.dark {
+  /* Dark mode specific tokens */
+  --accent-cyan: #00FFFF;       /* Electric-cyan accents */
+  --text-ghost: #FFFFFF;        /* Ghost-white inactive states */
+  --glow-cyan: 0 0 20px #00FFFF;
+  --glow-cyan-bright: 0 0 30px #00FFFF;
+}
 
 /* Pulse animation for nav blade heartbeat */
 @keyframes pulse-cyan {
@@ -60,17 +57,20 @@
 
 /* Utility classes */
 .glow-cyan {
+  color: hsl(var(--accent));
+}
+
+.dark .glow-cyan {
   color: var(--accent-cyan);
   box-shadow: var(--glow-cyan);
 }
 
 .ghost-white {
-  color: var(--text-ghost);
   opacity: 0.6;
 }
 
 .abandoned {
-  color: #FF0000;
+  color: hsl(var(--destructive));
 }
 
 
