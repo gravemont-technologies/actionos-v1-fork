@@ -21,5 +21,26 @@ describe("API: /api/health", () => {
       expect(response.body.status).toBe("ok");
     });
   });
+
+  describe("POST /api/health", () => {
+    it("should return health status", async () => {
+      const response = await request(app)
+        .post("/api/health")
+        .send({})
+        .expect(200);
+
+      expect(response.body).toHaveProperty("status");
+      expect(response.body.status).toBe("ok");
+    });
+
+    it("should not require authentication", async () => {
+      const response = await request(app)
+        .post("/api/health")
+        .send({})
+        .expect(200);
+
+      expect(response.body.status).toBe("ok");
+    });
+  });
 });
 

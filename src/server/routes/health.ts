@@ -14,9 +14,14 @@ const router = Router();
 
 /**
  * Basic health check (server is running)
+ * Accept both GET and POST to be tolerant of probes/tools
  */
 router.get("/", (_req: Request, res: Response) => {
-  res.json({ status: "ok" });
+  res.json({ status: "ok", env: process.env.NODE_ENV ?? 'development' });
+});
+
+router.post("/", (_req: Request, res: Response) => {
+  res.json({ status: "ok", env: process.env.NODE_ENV ?? 'development' });
 });
 
 /**
