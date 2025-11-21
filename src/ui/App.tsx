@@ -14,6 +14,7 @@ import { OnboardingQuiz } from "./OnboardingQuiz";
 import { AppLayout, AnalyzeView, DashboardView } from "./AppLayout";
 import Feedback from "./pages/Feedback";
 import { InsightsView } from "./pages/InsightsView";
+import MetricsPage from "./pages/MetricsPage";
 import NotFound from "./pages/NotFound";
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
@@ -62,6 +63,7 @@ function AppRoutes() {
           <Route path="/" element={<Landing />} />
           <Route path="/sign-in/*" element={<SignIn />} />
           <Route path="/sign-up/*" element={<SignUp />} />
+          <Route path="/metrics" element={<MetricsPage />} />
 
           {/* Protected routes */}
           <Route

@@ -37,7 +37,7 @@ export function Hero() {
               asChild
               className="transition-smooth"
             >
-              <a href="/metrics">Our Metrics</a>
+              <a href="/metrics">How it Works</a>
             </Button>
           </div>
 

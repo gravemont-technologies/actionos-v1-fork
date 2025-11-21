@@ -71,7 +71,7 @@ export function Nav() {
                 size="sm" 
                 asChild
               >
-                <a href="/metrics">Our Metrics</a>
+                <a href="/metrics">How it Works</a>
               </Button>
               <Button 
                 size="sm" 

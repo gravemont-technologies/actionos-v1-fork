@@ -81,9 +81,9 @@ export function Nav() {
               <Button 
                 size="sm" 
                 aria-label="Get Action"
-                onClick={() => setIsModalOpen(true)}
+                asChild
               >
-                Get Action
+                <Link to="/app/analyze">Get Action</Link>
               </Button>
             </>
           )}

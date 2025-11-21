@@ -3,6 +3,7 @@ import { Nav } from "@/ui/landing/Nav";
 import { Button } from "@/ui/components/ui/button";
 import { useState } from "react";
 import { ActionModal } from "@/ui/landing/ActionModal";
+import { Link } from "react-router-dom";
 
 /**
  * Protected dashboard page
@@ -37,11 +38,11 @@ export default function Dashboard() {
               Describe your situation in 1-3 sentences and get 1-3 exact, high-leverage actions in 60 seconds.
             </p>
             <Button 
-              size="lg" 
-              onClick={() => setIsModalOpen(true)}
+              size="lg"
+              asChild
               className="font-semibold"
             >
-              Get Action Now
+              <Link to="/app/analyze">Get Action Now</Link>
             </Button>
           </div>
 

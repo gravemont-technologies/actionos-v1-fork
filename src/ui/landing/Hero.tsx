@@ -48,11 +48,11 @@ export function Hero() {
             <SignedIn>
               <Button
                 size="lg"
-                onClick={() => setIsModalOpen(true)}
-                aria-label="Get Action - opens modal"
+                asChild
+                aria-label="Get Action - navigate to analyze"
                 className="transition-smooth hover:scale-105"
               >
-                Get Action
+                <Link to="/app/analyze">Get Action</Link>
               </Button>
               <Button
                 size="lg"
@@ -60,7 +60,7 @@ export function Hero() {
                 asChild
                 className="transition-smooth"
               >
-                <Link to="/app/analyze">Go to App</Link>
+                <Link to="/metrics">How it Works</Link>
               </Button>
             </SignedIn>
           </div>
