@@ -44,7 +44,7 @@ export default function Feedback() {
               <option>Bugs</option>
               <option>Improvements</option>
               <option>Thoughts</option>
-              <option>Secrets</option>
+              <option>Secrets 😉</option>
             </select>
           </label>
 

@@ -310,7 +310,7 @@ CREATE TABLE IF NOT EXISTS feedback_comments (
     ON DELETE SET NULL,
   user_id TEXT,
   category TEXT NOT NULL
-    CHECK (category IN ('Bugs', 'Improvements', 'Thoughts', 'Secrets')),
+    CHECK (category IN ('Bugs', 'Improvements', 'Thoughts', 'Secrets 😉')),
   message TEXT NOT NULL
     CHECK (LENGTH(message) >= 1 AND LENGTH(message) <= 5000),
   metadata JSONB DEFAULT '{}',

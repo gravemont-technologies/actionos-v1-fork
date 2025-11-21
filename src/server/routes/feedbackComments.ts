@@ -35,7 +35,7 @@ router.use(feedbackLimiter);
 
 const schema = z.object({
   profile_id: z.string().optional(),
-  category: z.enum(["Bugs", "Improvements", "Thoughts", "Secrets"]),
+  category: z.enum(["Bugs", "Improvements", "Thoughts", "Secrets 😉"]),
   message: z.string().min(1).max(5000).transform((v) => v.trim()),
   metadata: z.any().optional(),
 });
