@@ -603,11 +603,11 @@ function renderTextArea(
           padding: "1rem",
           background: "transparent",
           border: "1px solid var(--accent-cyan, #00FFFF)",
-          color: "var(--text-primary, #FFFFFF)",
           fontFamily: "var(--font-body, 'Inter Tight', 'Inter', system-ui, sans-serif)",
           fontSize: "1rem",
           resize: "vertical"
         }}
+        className="text-foreground"
       />
       {errors[field] && (
         <div style={{ color: "#FF0000", fontSize: "0.875rem", marginTop: "0.5rem" }}>
@@ -637,10 +637,10 @@ function renderTextInput(
           padding: "0.75rem 1rem",
           background: "transparent",
           border: "1px solid var(--accent-cyan, #00FFFF)",
-          color: "var(--text-primary, #FFFFFF)",
           fontFamily: "var(--font-body, 'Inter Tight', 'Inter', system-ui, sans-serif)",
           fontSize: "1rem"
         }}
+        className="text-foreground"
       />
       {errors[field] && (
         <div style={{ color: "#FF0000", fontSize: "0.875rem", marginTop: "0.5rem" }}>
