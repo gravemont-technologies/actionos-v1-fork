@@ -556,6 +556,31 @@ export function AnalyzeForm({ onComplete }: AnalyzeFormProps) {
         </div>
       )}
 
+      {submitting && (
+        <div style={{
+          marginBottom: "1rem",
+          background: "var(--background, #000)",
+          border: "1px solid var(--accent-cyan, #00FFFF)",
+          borderRadius: "4px",
+          overflow: "hidden",
+          height: "8px"
+        }}>
+          <div style={{
+            height: "100%",
+            background: "linear-gradient(90deg, var(--accent-cyan, #00FFFF), var(--accent-magenta, #FF00FF))",
+            animation: "loadingBar 2s ease-in-out infinite",
+            transformOrigin: "left"
+          }} />
+          <style>{`
+            @keyframes loadingBar {
+              0% { transform: scaleX(0.1); opacity: 0.6; }
+              50% { transform: scaleX(0.7); opacity: 1; }
+              100% { transform: scaleX(0.95); opacity: 0.8; }
+            }
+          `}</style>
+        </div>
+      )}
+
       <button
         type="submit"
         disabled={submitting}

@@ -148,6 +148,13 @@ export function Dashboard() {
     realized: number;
   }>>([]);
   const [loadingSparkline, setLoadingSparkline] = useState(false);
+  const [tokenUsage, setTokenUsage] = useState<{
+    used: number;
+    remaining: number;
+    limit: number;
+    percentage: number;
+  } | null>(null);
+  const [loadingTokenUsage, setLoadingTokenUsage] = useState(false);
   const navigate = useNavigate();
   const fetchingRef = useRef(false); // Prevent parallel calls
   const abortControllerRef = useRef<AbortController | null>(null); // Cancel requests on unmount/dependency change
@@ -353,6 +360,30 @@ export function Dashboard() {
           },
         }
       ),
+
+      // Fetch token usage (OpenAI credits)
+      createSafeFetch(
+        () => api.get<{ used: number; remaining: number; limit: number; percentage: number }>(
+          `/api/usage/tokens`,
+          { headers, signal }
+        ),
+        {
+          signal,
+          isMounted: () => isMountedRef.current,
+          setLoading: setLoadingTokenUsage,
+          setData: (data) => {
+            setTokenUsage(data);
+          },
+          setError: (error) => {
+            setTokenUsage(null);
+          },
+          onError: (error) => {
+            if (error?.status !== 401 && error?.status !== 404) {
+              console.error("Token usage fetch error:", error);
+            }
+          },
+        }
+      ),
     ];
 
     // Wait for all requests to complete (or fail)
@@ -512,6 +543,108 @@ export function Dashboard() {
           </>
         )}
       </div>
+
+      {/* Token Usage Display (OpenAI Credits) */}
+      {tokenUsage && (
+        <section style={{
+          marginTop: "2rem",
+          padding: "1.5rem",
+          border: `2px solid ${tokenUsage.percentage >= 100 ? "#dc2626" : tokenUsage.percentage >= 80 ? "#f59e0b" : "var(--accent-cyan, #00FFFF)"}`,
+          background: tokenUsage.percentage >= 100 ? "rgba(220, 38, 38, 0.05)" : tokenUsage.percentage >= 80 ? "rgba(245, 158, 11, 0.05)" : "rgba(0, 255, 255, 0.03)",
+          borderRadius: "8px"
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+            <h3 style={{
+              margin: 0,
+              color: tokenUsage.percentage >= 100 ? "#dc2626" : tokenUsage.percentage >= 80 ? "#f59e0b" : "var(--accent-cyan, #00FFFF)",
+              fontFamily: "var(--font-mono, 'Geist Mono', 'SF Mono', 'Monaco', monospace)",
+              fontSize: "1.1rem"
+            }}>
+              OpenAI Credits (Today)
+            </h3>
+            <span style={{
+              fontFamily: "var(--font-mono, 'Geist Mono', 'SF Mono', 'Monaco', monospace)",
+              fontSize: "0.875rem",
+              color: tokenUsage.percentage >= 100 ? "#dc2626" : tokenUsage.percentage >= 80 ? "#f59e0b" : "var(--text-secondary, #AAAAAA)",
+              fontWeight: 600
+            }}>
+              {tokenUsage.percentage}%
+            </span>
+          </div>
+          
+          <div style={{
+            width: "100%",
+            height: "12px",
+            background: "var(--muted, #1a1a1a)",
+            borderRadius: "6px",
+            overflow: "hidden",
+            marginBottom: "1rem",
+            border: "1px solid rgba(255, 255, 255, 0.1)"
+          }}>
+            <div style={{
+              height: "100%",
+              width: `${Math.min(tokenUsage.percentage, 100)}%`,
+              background: tokenUsage.percentage >= 100 
+                ? "linear-gradient(90deg, #dc2626, #b91c1c)" 
+                : tokenUsage.percentage >= 80 
+                ? "linear-gradient(90deg, #f59e0b, #d97706)"
+                : "linear-gradient(90deg, var(--accent-cyan, #00FFFF), var(--accent-magenta, #FF00FF))",
+              transition: "width 0.3s ease",
+              boxShadow: tokenUsage.percentage >= 80 ? "0 0 10px rgba(245, 158, 11, 0.5)" : "0 0 8px rgba(0, 255, 255, 0.3)"
+            }} />
+          </div>
+
+          <div style={{
+            display: "flex",
+            justifyContent: "space-between",
+            fontFamily: "var(--font-mono, 'Geist Mono', 'SF Mono', 'Monaco', monospace)",
+            fontSize: "0.875rem"
+          }}>
+            <span style={{ color: "var(--text-secondary, #AAAAAA)" }}>
+              Used: <strong style={{ color: "var(--text-primary, #FFFFFF)" }}>{tokenUsage.used.toLocaleString()}</strong>
+            </span>
+            <span style={{ color: "var(--text-secondary, #AAAAAA)" }}>
+              Remaining: <strong style={{ color: tokenUsage.percentage >= 100 ? "#dc2626" : "var(--text-primary, #FFFFFF)" }}>
+                {tokenUsage.remaining.toLocaleString()}
+              </strong>
+            </span>
+            <span style={{ color: "var(--text-secondary, #AAAAAA)" }}>
+              Limit: <strong style={{ color: "var(--text-primary, #FFFFFF)" }}>{tokenUsage.limit.toLocaleString()}</strong>
+            </span>
+          </div>
+
+          {tokenUsage.percentage >= 100 && (
+            <div style={{
+              marginTop: "1rem",
+              padding: "0.75rem",
+              background: "rgba(220, 38, 38, 0.1)",
+              border: "1px solid #dc2626",
+              borderRadius: "4px",
+              color: "#dc2626",
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              textAlign: "center"
+            }}>
+              ⚠️ Daily limit reached. New requests will be blocked until tomorrow.
+            </div>
+          )}
+          {tokenUsage.percentage >= 80 && tokenUsage.percentage < 100 && (
+            <div style={{
+              marginTop: "1rem",
+              padding: "0.75rem",
+              background: "rgba(245, 158, 11, 0.1)",
+              border: "1px solid #f59e0b",
+              borderRadius: "4px",
+              color: "#f59e0b",
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              textAlign: "center"
+            }}>
+              ⚡ Approaching daily limit ({tokenUsage.remaining.toLocaleString()} tokens remaining)
+            </div>
+          )}
+        </section>
+      )}
 
       {loadingActiveStep ? (
         <section className="step">

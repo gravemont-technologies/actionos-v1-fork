@@ -11,6 +11,7 @@ import healthRouter from "./routes/health.js";
 import insightsRouter from "./routes/insights.js";
 import feedbackCommentsRouter from "./routes/feedbackComments.js";
 import metricsRouter from "./routes/metrics.js";
+import usageRouter from "./routes/usage.js";
 import { ProfileStore } from "./store/profileStore.js";
 import { requestContextMiddleware } from "./middleware/requestContext.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
@@ -83,6 +84,7 @@ app.use("/api/step-feedback", feedbackRouter);
 app.use("/api/insights", insightsRouter);
 app.use("/api/feedback-comments", feedbackCommentsRouter);
 app.use("/api/metrics", metricsRouter);
+app.use("/api/usage", usageRouter);
 
 // 7. 404 handler
 app.use(notFoundHandler);
