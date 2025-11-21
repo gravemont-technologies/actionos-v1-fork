@@ -19,7 +19,7 @@ export function Hero() {
         {/* Left: Copy + CTAs */}
         <div className="space-y-6">
           <h1 className="text-4xl font-semibold leading-tight tracking-tight md:text-5xl lg:text-6xl text-foreground">
-            Get 1–3 exact, high-leverage actions in 60s.
+            Stop planning. Start executing.
           </h1>
           
           <h2 className="text-lg md:text-xl text-muted-foreground max-w-xl">

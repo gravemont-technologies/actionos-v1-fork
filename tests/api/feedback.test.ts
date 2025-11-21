@@ -4,7 +4,7 @@ import app from "../../src/server/index.js";
 import { getSupabaseClient } from "../../src/server/db/supabase.js";
 
 const mockUserId = "user_test_123";
-const mockProfileId = "profile_test_123";
+const mockProfileId = "beefcafe12345678"; // Must be ≥8 hex chars
 
 function authenticatedRequest(method: "get" | "post", path: string) {
   return request(app)[method](path).set("x-clerk-user-id", mockUserId);

@@ -16,7 +16,7 @@ import { getSupabaseClient } from "../../src/server/db/supabase.js";
 import { computeServerSignature } from "../../src/server/utils/signature.js";
 
 const mockUserId = "user_test_comprehensive";
-const mockProfileId = "profile_test_comprehensive";
+const mockProfileId = "cafe1234babe5678"; // Must be ≥8 hex chars to match schema constraint
 
 function authenticatedRequest(method: "get" | "post", path: string) {
   return request(app)[method](path).set("x-clerk-user-id", mockUserId);

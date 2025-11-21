@@ -7,7 +7,7 @@ import { normalizeValue, normalizeConstraints } from "../../src/shared/signature
 
 // Mock Clerk authentication for testing
 const mockUserId = "user_test_123";
-const mockProfileId = "profile_test_123";
+const mockProfileId = "deadbeef12345678"; // Must be ≥8 hex chars to match schema constraint
 
 // Helper to create authenticated request
 function authenticatedRequest(method: "get" | "post" | "put" | "delete", path: string) {

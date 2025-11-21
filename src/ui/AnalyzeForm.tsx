@@ -516,7 +516,10 @@ export function AnalyzeForm({ onComplete }: AnalyzeFormProps) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", marginBottom: "0.5rem" }}>
           <div style={{ flex: 1 }}>
         <h2>Describe your situation</h2>
-            <p>We will return 1–3 actions with complete analysis. All fields required unless noted.</p>
+            <p>Situation → Analyze → Actions → Review 🏆 Achieve J</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Insights are not persisted—leaving the page or closing the app clears every suggestion.
+            </p>
           </div>
           <Button
             type="button"

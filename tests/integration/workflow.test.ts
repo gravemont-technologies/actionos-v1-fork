@@ -5,7 +5,7 @@ import { getSupabaseClient } from "../../src/server/db/supabase.js";
 import { computeServerSignature } from "../../src/server/utils/signature.js";
 
 const mockUserId = "user_workflow_test";
-const mockProfileId = "profile_workflow_test";
+const mockProfileId = "cafe1234feedbeef"; // Must be ≥8 hex chars
 
 function authenticatedRequest(method: "get" | "post", path: string) {
   return request(app)[method](path).set("x-clerk-user-id", mockUserId);
