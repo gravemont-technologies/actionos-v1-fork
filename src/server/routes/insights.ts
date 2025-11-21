@@ -150,6 +150,28 @@ router.get("/", insightsRateLimiter, requireUserId, async (req, res, next) => {
   }
 });
 
+// Get count of saved insights (projects) for current user
+// IMPORTANT: Must be defined BEFORE /:signature route to avoid matching "count" as a signature
+router.get("/count", insightsRateLimiter, requireUserId, async (req, res, next) => {
+  try {
+    const supabase = getSupabaseClient();
+    const { count, error } = await supabase
+      .from("signature_cache")
+      .select("signature", { count: "exact", head: true })
+      .eq("user_id", req.userId)
+      .eq("is_saved", true)
+      .is("expires_at", null);
+
+    if (error) {
+      return next(error);
+    }
+
+    return res.json({ status: "success", count: count ?? 0 });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 // Get single insight
 router.get("/:signature", insightsRateLimiter, requireUserId, async (req, res, next) => {
   const cache: SignatureCache | undefined = req.app.locals.signatureCache;
@@ -210,27 +232,6 @@ router.delete("/:signature", insightsRateLimiter, requireUserId, async (req, res
   try {
     await cache.unsaveInsight(req.params.signature, req.userId!); // Guaranteed non-null by requireUserId
     return res.json({ status: "success" });
-  } catch (error) {
-    return next(error);
-  }
-});
-
-// Get count of saved insights (projects) for current user
-router.get("/count", insightsRateLimiter, requireUserId, async (req, res, next) => {
-  try {
-    const supabase = getSupabaseClient();
-    const { count, error } = await supabase
-      .from("signature_cache")
-      .select("signature", { count: "exact", head: true })
-      .eq("user_id", req.userId)
-      .eq("is_saved", true)
-      .is("expires_at", null);
-
-    if (error) {
-      return next(error);
-    }
-
-    return res.json({ status: "success", count: count ?? 0 });
   } catch (error) {
     return next(error);
   }
