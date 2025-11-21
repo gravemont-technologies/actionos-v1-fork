@@ -37,6 +37,8 @@
     "test:types": "npm run lint && echo 'Type check passed'",
     "health": "curl http://localhost:3001/api/health || echo 'Server not running'",
     "db:apply-schema": "node scripts/apply-schema.mjs"
+    ,
+    "test:feedback": "tsx scripts/test-feedback-route.ts"
   },
   "keywords": [],
   "author": "",
