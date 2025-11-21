@@ -1,9 +1,9 @@
+/* Import design tokens - MUST be the very first statement for PostCSS @import rules */
+@import './ui/styles/design-tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Import design tokens */
-@import './ui/styles/design-tokens.css';
 
 /* Performance-first design system with Inter font and tight palette */
 

@@ -13,10 +13,23 @@ import { logger } from "../utils/logger.js";
 const router = Router();
 
 /**
+ * Helper to generate health check response
+ */
+const healthResponse = () => ({
+  status: "ok" as const,
+  env: process.env.NODE_ENV ?? 'development'
+});
+
+/**
  * Basic health check (server is running)
+ * Accept both GET and POST to be tolerant of probes/tools
  */
 router.get("/", (_req: Request, res: Response) => {
-  res.json({ status: "ok" });
+  res.json(healthResponse());
+});
+
+router.post("/", (_req: Request, res: Response) => {
+  res.json(healthResponse());
 });
 
 /**
