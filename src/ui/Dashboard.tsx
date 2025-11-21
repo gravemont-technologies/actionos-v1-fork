@@ -511,6 +511,35 @@ export function Dashboard() {
       <section className="dashboard" style={{ 
         paddingTop: "calc(2rem + 48px)" // Account for fixed StreakBar
       }}>
+        <div style={{
+          padding: "1.5rem 2rem",
+          marginBottom: "2rem",
+          background: "linear-gradient(135deg, #dc2626 0%, #f97316 100%)",
+          border: "3px solid #fbbf24",
+          borderRadius: "8px",
+          textAlign: "center",
+          boxShadow: "0 4px 20px rgba(220, 38, 38, 0.3)"
+        }}>
+          <h1 style={{
+            fontSize: "2.5rem",
+            fontWeight: 900,
+            color: "#FFFFFF",
+            margin: 0,
+            textTransform: "uppercase",
+            letterSpacing: "0.1em",
+            textShadow: "2px 2px 4px rgba(0,0,0,0.3)"
+          }}>
+            🚧 COMING SOON! 🚧
+          </h1>
+          <p style={{
+            fontSize: "1rem",
+            color: "#FEF3C7",
+            margin: "0.5rem 0 0 0",
+            fontWeight: 600
+          }}>
+            Dashboard features are under construction
+          </p>
+        </div>
         <header>
           <h2>Action Guarantee Dashboard</h2>
           <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginTop: "0.25rem" }}>
