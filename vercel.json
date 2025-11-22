@@ -1,6 +1,7 @@
 {
   "buildCommand": "npm run build",
   "installCommand": "npm install",
+  "includeFiles": ["dist/server/**"],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api" },
     { "source": "/(.*)", "destination": "/index.html" }
