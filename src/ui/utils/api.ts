@@ -47,14 +47,17 @@ function resolveUrl(url: string): string {
 function isRetryableError(error: unknown): boolean {
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
-    // Don't retry on client errors (4xx) except 408 (timeout) and 429 (rate limit)
+    // Don't retry on client errors (4xx) except 408 (timeout), 429 (rate limit), and 401 (auth race)
     if (
       message.includes("400") ||
-      message.includes("401") ||
       message.includes("403") ||
       message.includes("404")
     ) {
       return false;
+    }
+    // Special case: retry 401 once (handles token fetch race condition)
+    if (message.includes("401")) {
+      return true; // Allow one retry
     }
     // Retry on network errors, timeouts, 5xx errors
     return (
@@ -123,6 +126,13 @@ async function fetchWithRetry(
 
     return response;
   } catch (error) {
+    // Special handling for 401: single retry after 300ms (token fetch race)
+    if (error instanceof Error && error.message.includes("401") && attempt === 0) {
+      const delay = 300; // 300ms delay for token to be fetched
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return fetchWithRetry(url, options, attempt + 1);
+    }
+
     // Check if retryable and not exceeded max retries
     if (isRetryableError(error) && attempt < maxRetries) {
       // Exponential backoff
