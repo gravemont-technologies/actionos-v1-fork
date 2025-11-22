@@ -65,10 +65,14 @@ function validateEnv(): EnvConfig {
     );
   }
 
+  // In Vercel serverless, use VERCEL_URL for FRONTEND_URL if not set
+  const frontendUrl = process.env.FRONTEND_URL || 
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+
   return {
     NODE_ENV: nodeEnv,
     PORT: Number(process.env.PORT) || 3001,
-    FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:3000",
+    FRONTEND_URL: frontendUrl,
 
     SUPABASE_URL: process.env.SUPABASE_URL!,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY!,
