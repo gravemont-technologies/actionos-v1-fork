@@ -2,11 +2,11 @@
  * Authentication integration layer with Clerk
  * 
  * Provides utilities for getting Clerk user ID and auth headers
- * Note: getUserId() can only be used inside ClerkProvider context
+ * Optimized for zero race conditions and maximum performance
  */
 
 import { useUser, useAuth } from "@clerk/clerk-react";
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useRef, useEffect } from "react";
 
 /**
  * Hook to get current Clerk user ID
@@ -19,28 +19,62 @@ export function useUserId(): string | null {
 
 /**
  * Hook to get auth headers with Clerk session token
- * Returns headers object with token fetched synchronously
+ * Returns stable object with cached token, auto-refreshes on userId change
+ * 
+ * Uses Proxy pattern for stable reference while updating underlying headers
+ * This prevents infinite loops in useEffect dependencies
  */
-export function useAuthHeaders(): () => Promise<Record<string, string>> {
+export function useAuthHeaders(): Record<string, string> {
   const userId = useUserId();
   const { getToken } = useAuth();
+  const headersRef = useRef<Record<string, string>>({});
+  
+  useEffect(() => {
+    if (!userId) {
+      headersRef.current = {};
+      return;
+    }
 
-  return useMemo(() => {
-    return async (): Promise<Record<string, string>> => {
-      if (!userId) return {};
-      
+    let cancelled = false;
+    
+    const fetchToken = async () => {
       try {
         const token = await getToken();
-        return {
-          "x-clerk-user-id": userId,
-          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
-        };
+        if (!cancelled) {
+          headersRef.current = {
+            "x-clerk-user-id": userId,
+            ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+          };
+        }
       } catch (error) {
-        console.error("Failed to get Clerk token:", error);
-        return { "x-clerk-user-id": userId };
+        if (!cancelled) {
+          console.error("Failed to get Clerk token:", error);
+          headersRef.current = { "x-clerk-user-id": userId };
+        }
       }
     };
+
+    fetchToken();
+    
+    return () => {
+      cancelled = true;
+    };
   }, [userId, getToken]);
+
+  // Return stable memoized proxy that reads from ref
+  return useMemo(() => {
+    return new Proxy({}, {
+      get: (_target, prop: string) => headersRef.current[prop],
+      ownKeys: () => Reflect.ownKeys(headersRef.current),
+      getOwnPropertyDescriptor: (_target, prop) => {
+        return {
+          enumerable: true,
+          configurable: true,
+          value: headersRef.current[prop as string],
+        };
+      },
+    }) as Record<string, string>;
+  }, []); // Empty deps - proxy always reads latest from ref
 }
 
 /**

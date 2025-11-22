@@ -179,14 +179,13 @@ export function AnalyzeForm({ onComplete }: AnalyzeFormProps) {
           !formData.deadline &&
           !response) {
         try {
-          const headers = await authHeaders();
           const demoData = await api.get<{
             situation: string;
             goal: string;
             constraints: string;
             current_steps: string;
             deadline: string;
-          }>("/api/analyze/demo/data", { headers });
+          }>("/api/analyze/demo/data", { headers: authHeaders });
           
           setFormData({
             situation: demoData.situation || "",
@@ -243,7 +242,6 @@ export function AnalyzeForm({ onComplete }: AnalyzeFormProps) {
     await new Promise(resolve => setTimeout(resolve, 800));
     
     try {
-      const headers = await authHeaders();
       const response: AnalyzeResponse = await api.post<AnalyzeResponse>(
         "/api/analyze",
         {
@@ -259,7 +257,7 @@ export function AnalyzeForm({ onComplete }: AnalyzeFormProps) {
         {
           headers: {
             "x-signature": signature,
-            ...headers,
+            ...authHeaders,
           },
           timeout: 60000, // 60 seconds for LLM calls
         }
@@ -330,7 +328,16 @@ export function AnalyzeForm({ onComplete }: AnalyzeFormProps) {
   };
 
   if (!profileId) {
-    return <div>No profile ID available</div>;
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="text-lg font-medium">Setting up your profile...</div>
+          <div className="text-sm text-muted-foreground">
+            This should only take a moment. If this persists, try refreshing the page.
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const handleFollowUp = async (focusArea: string) => {

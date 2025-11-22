@@ -83,52 +83,41 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
       setError(null);
       try {
         console.log('[ProfileContext] Fetching profile status...');
-        // Use the dedicated auth status endpoint which is more robust and handles race conditions
         const data = await api.get<{ hasProfile: boolean; profileId: string | null }>(
           "/api/auth/status"
         );
         
         console.log('[ProfileContext] Auth status response:', data);
         
-        // Check if component is still mounted and effect hasn't been cancelled
-        if (isCancelled) {
-          return;
-        }
+        if (isCancelled) return;
         
         if (data.hasProfile && data.profileId) {
-          const fetchedProfileId = data.profileId;
-          console.log('[ProfileContext] Found existing profile:', fetchedProfileId);
-          setProfileIdState(fetchedProfileId);
-          // Store in localStorage as backup
+          console.log('[ProfileContext] Found existing profile:', data.profileId);
+          setProfileIdState(data.profileId);
           if (typeof window !== "undefined") {
-            localStorage.setItem("action_os_profile_id", fetchedProfileId);
+            localStorage.setItem("action_os_profile_id", data.profileId);
           }
         } else {
-          // No profile found - auto-create minimal profile (onboarding disabled)
+          // No profile - auto-create
           console.log('[ProfileContext] No profile found, auto-creating...');
           try {
-            const createResponse = await api.post<{ profile_id: string }>(
-              "/api/onboarding/profile",
-              {
-                responses: {}, // Empty responses for auto-created profile
-                consent_to_store: true
-              }
+            const createResponse = await api.post<{ profileId: string }>(
+              "/api/auth/create-profile",
+              {}
             );
             
             console.log('[ProfileContext] Auto-create response:', createResponse);
             
-            if (!isCancelled && createResponse.profile_id) {
-              console.log('[ProfileContext] Profile created:', createResponse.profile_id);
-              setProfileIdState(createResponse.profile_id);
+            if (!isCancelled && createResponse.profileId) {
+              console.log('[ProfileContext] Profile created:', createResponse.profileId);
+              setProfileIdState(createResponse.profileId);
               if (typeof window !== "undefined") {
-                localStorage.setItem("action_os_profile_id", createResponse.profile_id);
+                localStorage.setItem("action_os_profile_id", createResponse.profileId);
               }
             }
           } catch (createErr) {
             console.error("[ProfileContext] Failed to auto-create profile:", createErr);
-            // Don't block the app - set a temporary profile ID
             const tempProfileId = `temp_${Date.now()}`;
-            console.log('[ProfileContext] Using temporary profile ID:', tempProfileId);
             setProfileIdState(tempProfileId);
             if (typeof window !== "undefined") {
               localStorage.setItem("action_os_profile_id", tempProfileId);
@@ -136,15 +125,10 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
           }
         }
       } catch (err) {
-        // Only update state if not cancelled
-        if (isCancelled) {
-          return;
-        }
+        if (isCancelled) return;
         console.error("[ProfileContext] Failed to fetch profile status:", err);
         setError((err as Error).message);
-        // Don't block the app - use temporary profile
         const tempProfileId = `temp_${Date.now()}`;
-        console.log('[ProfileContext] Error fallback - using temporary profile ID:', tempProfileId);
         setProfileIdState(tempProfileId);
         if (typeof window !== "undefined") {
           localStorage.setItem("action_os_profile_id", tempProfileId);

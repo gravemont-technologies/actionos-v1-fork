@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { randomUUID } from "crypto";
 import { getSupabaseClient } from "../db/supabase.js";
 import { clerkAuthMiddleware } from "../middleware/clerkAuth.js";
 import { logger } from "../utils/logger.js";
@@ -47,6 +48,56 @@ router.get("/status", async (req, res) => {
   } catch (error) {
     logger.error({ userId, error }, "Failed to check auth status");
     return res.status(500).json({ error: "Failed to check status" });
+  }
+});
+
+/**
+ * POST /api/auth/create-profile
+ * Auto-creates a minimal profile for authenticated user
+ * No onboarding required - instant access to app
+ */
+router.post("/create-profile", async (req, res) => {
+  const userId = req.userId;
+
+  if (!userId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+    const supabase = getSupabaseClient();
+    
+    // Check if profile already exists
+    const { data: existing } = await supabase
+      .from("profiles" as any)
+      .select("profile_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (existing) {
+      return res.json({ profileId: (existing as any).profile_id });
+    }
+
+    // Create minimal profile
+    const profileId = randomUUID();
+    const { error: insertError } = await supabase
+      .from("profiles" as any)
+      .insert({
+        profile_id: profileId,
+        user_id: userId,
+        tags: [],
+        created_at: new Date().toISOString(),
+      });
+
+    if (insertError) {
+      logger.error({ userId, error: insertError }, "Failed to create profile");
+      return res.status(500).json({ error: "Failed to create profile" });
+    }
+
+    logger.info({ userId, profileId }, "Auto-created profile");
+    return res.json({ profileId });
+  } catch (error) {
+    logger.error({ userId, error }, "Error in create-profile");
+    return res.status(500).json({ error: "Failed to create profile" });
   }
 });
 
