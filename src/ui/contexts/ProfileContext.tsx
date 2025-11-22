@@ -32,14 +32,12 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
 
   // Safety timeout: Don't let loading state block forever
   useEffect(() => {
+    if (!isLoading) return; // Skip if not loading
+    
     const timeout = setTimeout(() => {
-      if (isLoading) {
-        console.warn('[ProfileContext] Loading timeout - forcing completion with temp profile');
-        const tempProfileId = `temp_${Date.now()}`;
-        setProfileIdState(tempProfileId);
-        setIsLoading(false);
-      }
-    }, 10000); // 10 second timeout
+      console.warn('[ProfileContext] Loading timeout - marking as complete');
+      setIsLoading(false);
+    }, 5000); // 5 second timeout (reduced from 10s)
 
     return () => clearTimeout(timeout);
   }, [isLoading]);
@@ -117,22 +115,13 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
             }
           } catch (createErr) {
             console.error("[ProfileContext] Failed to auto-create profile:", createErr);
-            const tempProfileId = `temp_${Date.now()}`;
-            setProfileIdState(tempProfileId);
-            if (typeof window !== "undefined") {
-              localStorage.setItem("action_os_profile_id", tempProfileId);
-            }
+            setError("Failed to create profile. Please refresh the page.");
           }
         }
       } catch (err) {
         if (isCancelled) return;
         console.error("[ProfileContext] Failed to fetch profile status:", err);
         setError((err as Error).message);
-        const tempProfileId = `temp_${Date.now()}`;
-        setProfileIdState(tempProfileId);
-        if (typeof window !== "undefined") {
-          localStorage.setItem("action_os_profile_id", tempProfileId);
-        }
       } finally {
         if (!isCancelled) {
           setIsLoading(false);
