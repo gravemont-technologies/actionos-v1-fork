@@ -26,7 +26,7 @@
     "test:coverage": "vitest run --coverage",
     "build": "npm run build:server && npm run build:client",
     "build:server": "tsc -p tsconfig.json",
-    "build:client": "vite build",
+    "build:client": "vite build --outDir dist/client",
     "start": "node dist/server/index.js",
     "start:prod": "NODE_ENV=production node dist/server/index.js",
     "lint": "tsc --noEmit",
