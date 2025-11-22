@@ -8,22 +8,11 @@
  */
 
 import pino from "pino";
-import { env, isDevelopment } from "../config/env.js";
+import { env } from "../config/env.js";
 
-// Create base logger
+// Create base logger - no pino-pretty (serverless incompatible)
 const baseLogger = pino({
-  level: process.env.LOG_LEVEL || (isDevelopment() ? "debug" : "info"),
-  // Only use pino-pretty in development (not serverless-compatible)
-  ...(isDevelopment() && {
-    transport: {
-      target: "pino-pretty",
-      options: {
-        colorize: true,
-        translateTime: "HH:MM:ss Z",
-        ignore: "pid,hostname",
-      },
-    },
-  }),
+  level: process.env.LOG_LEVEL || "info",
   base: {
     env: env.NODE_ENV,
   },
