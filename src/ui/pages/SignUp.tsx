@@ -29,7 +29,7 @@ export default function SignUp() {
           routing="path" 
           path="/sign-up"
           signInUrl="/sign-in"
-          afterSignUpUrl="/onboarding"
+          afterSignUpUrl="/app/analyze"
           appearance={{
             elements: {
               rootBox: "w-full",

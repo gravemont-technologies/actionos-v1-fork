@@ -66,6 +66,7 @@ function AppRoutes() {
           <Route path="/metrics" element={<MetricsPage />} />
 
           {/* Protected routes */}
+          {/* DISABLED: Onboarding temporarily disabled
           <Route
             path="/onboarding"
             element={
@@ -76,12 +77,13 @@ function AppRoutes() {
               </ProtectedRoute>
             }
           />
+          */}
 
           {/* Main app routes */}
           <Route
             path="/app"
             element={
-              <ProtectedRoute requireOnboarding={true}>
+              <ProtectedRoute requireOnboarding={false}>
                 <AppLayout />
               </ProtectedRoute>
             }
