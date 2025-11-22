@@ -6,7 +6,7 @@
  */
 
 import { useUser, useAuth } from "@clerk/clerk-react";
-import { useMemo, useRef, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 /**
  * Hook to get current Clerk user ID
@@ -19,19 +19,17 @@ export function useUserId(): string | null {
 
 /**
  * Hook to get auth headers with Clerk session token
- * Returns stable object with cached token, auto-refreshes on userId change
- * 
- * Uses Proxy pattern for stable reference while updating underlying headers
- * This prevents infinite loops in useEffect dependencies
+ * Returns stable object that updates when token is fetched
+ * Memoized to prevent infinite loops in useEffect dependencies
  */
 export function useAuthHeaders(): Record<string, string> {
   const userId = useUserId();
   const { getToken } = useAuth();
-  const headersRef = useRef<Record<string, string>>({});
+  const [headers, setHeaders] = useState<Record<string, string>>({});
   
   useEffect(() => {
     if (!userId) {
-      headersRef.current = {};
+      setHeaders({});
       return;
     }
 
@@ -41,15 +39,15 @@ export function useAuthHeaders(): Record<string, string> {
       try {
         const token = await getToken();
         if (!cancelled) {
-          headersRef.current = {
+          setHeaders({
             "x-clerk-user-id": userId,
             ...(token ? { "Authorization": `Bearer ${token}` } : {}),
-          };
+          });
         }
       } catch (error) {
         if (!cancelled) {
           console.error("Failed to get Clerk token:", error);
-          headersRef.current = { "x-clerk-user-id": userId };
+          setHeaders({ "x-clerk-user-id": userId });
         }
       }
     };
@@ -61,20 +59,7 @@ export function useAuthHeaders(): Record<string, string> {
     };
   }, [userId, getToken]);
 
-  // Return stable memoized proxy that reads from ref
-  return useMemo(() => {
-    return new Proxy({}, {
-      get: (_target, prop: string) => headersRef.current[prop],
-      ownKeys: () => Reflect.ownKeys(headersRef.current),
-      getOwnPropertyDescriptor: (_target, prop) => {
-        return {
-          enumerable: true,
-          configurable: true,
-          value: headersRef.current[prop as string],
-        };
-      },
-    }) as Record<string, string>;
-  }, []); // Empty deps - proxy always reads latest from ref
+  return headers;
 }
 
 /**

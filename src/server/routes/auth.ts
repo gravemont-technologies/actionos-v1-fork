@@ -77,7 +77,7 @@ router.post("/create-profile", async (req, res) => {
       return res.json({ profileId: (existing as any).profile_id });
     }
 
-    // Create minimal profile
+    // Create minimal profile with default baselines
     const profileId = randomUUID();
     const { error: insertError } = await supabase
       .from("profiles" as any)
@@ -85,7 +85,12 @@ router.post("/create-profile", async (req, res) => {
         profile_id: profileId,
         user_id: userId,
         tags: [],
+        baseline_ipp: 50.0,
+        baseline_but: 50.0,
+        strengths: [],
+        consent_to_store: true,
         created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       });
 
     if (insertError) {
