@@ -9,7 +9,7 @@ import {
 } from "../shared/signature.js";
 import { AnalyzeResponse, LLMResponse } from "../shared/types.js";
 import { ResponseDisplay } from "./ResponseDisplay.js";
-import { useAuthHeaders } from "./auth.js";
+import { useAuthHeaders, useAuthReady } from "./auth.js";
 import { api } from "./utils/api.js";
 import { useProfileId, useProfileContext } from "./contexts/ProfileContext.js";
 import { Button } from "@/ui/components/ui/button";
@@ -54,6 +54,7 @@ export function AnalyzeForm({ onComplete }: AnalyzeFormProps) {
   const profileId = useProfileId();
   const { clearProfileId } = useProfileContext();
   const authHeaders = useAuthHeaders();
+  const isAuthReady = useAuthReady();
   const navigate = useNavigate();
   const [formData, setFormData] = useState<FormState>(initialState);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
@@ -170,6 +171,8 @@ export function AnalyzeForm({ onComplete }: AnalyzeFormProps) {
 
   // Demo preload on Enter key
   useEffect(() => {
+    if (!isAuthReady) return; // Wait for auth to be ready
+    
     const handleKeyPress = async (e: KeyboardEvent) => {
       if (e.key === "Enter" && 
           !formData.situation && 
@@ -205,7 +208,7 @@ export function AnalyzeForm({ onComplete }: AnalyzeFormProps) {
 
     window.addEventListener("keydown", handleKeyPress);
     return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [formData.situation, formData.goal, formData.constraints, formData.currentSteps, formData.deadline, response, authHeaders]);
+  }, [formData.situation, formData.goal, formData.constraints, formData.currentSteps, formData.deadline, response, authHeaders, isAuthReady]);
 
   const handleChange =
     (field: keyof FormState) =>
@@ -231,6 +234,12 @@ export function AnalyzeForm({ onComplete }: AnalyzeFormProps) {
     setServerError(null);
 
     if (!validate() || !signature || !profileId || !payload) {
+      return;
+    }
+
+    // Guard: Wait for auth to be ready before submitting
+    if (!isAuthReady) {
+      setServerError("Authentication initializing, please try again in a moment");
       return;
     }
 

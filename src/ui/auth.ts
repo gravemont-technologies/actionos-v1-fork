@@ -26,10 +26,12 @@ export function useAuthHeaders(): Record<string, string> {
   const userId = useUserId();
   const { getToken } = useAuth();
   const [headers, setHeaders] = useState<Record<string, string>>({});
+  const [isReady, setIsReady] = useState(false);
   
   useEffect(() => {
     if (!userId) {
       setHeaders({});
+      setIsReady(true);
       return;
     }
 
@@ -43,11 +45,13 @@ export function useAuthHeaders(): Record<string, string> {
             "x-clerk-user-id": userId,
             ...(token ? { "Authorization": `Bearer ${token}` } : {}),
           });
+          setIsReady(true);
         }
       } catch (error) {
         if (!cancelled) {
           console.error("Failed to get Clerk token:", error);
           setHeaders({ "x-clerk-user-id": userId });
+          setIsReady(true);
         }
       }
     };
@@ -60,6 +64,42 @@ export function useAuthHeaders(): Record<string, string> {
   }, [userId, getToken]);
 
   return headers;
+}
+
+/**
+ * Hook to check if auth headers are ready (token fetched)
+ * Use this to prevent API calls before authentication is complete
+ */
+export function useAuthReady(): boolean {
+  const userId = useUserId();
+  const { getToken } = useAuth();
+  const [isReady, setIsReady] = useState(false);
+  
+  useEffect(() => {
+    if (!userId) {
+      setIsReady(true);
+      return;
+    }
+
+    let cancelled = false;
+    
+    const checkAuth = async () => {
+      try {
+        await getToken();
+        if (!cancelled) setIsReady(true);
+      } catch (error) {
+        if (!cancelled) setIsReady(true);
+      }
+    };
+
+    checkAuth();
+    
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, getToken]);
+
+  return isReady;
 }
 
 /**

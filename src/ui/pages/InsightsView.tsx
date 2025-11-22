@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useAuthHeaders, useUserId } from "../auth.js";
+import { useAuthHeaders, useUserId, useAuthReady } from "../auth.js";
 import { api } from "../utils/api.js";
 // Toast removed - using silent state updates
 import { useNavigate } from "react-router-dom";
@@ -42,6 +42,7 @@ type InsightData = {
 export function InsightsView() {
   const userId = useUserId(); // Get userId (stable string reference) for dependencies
   const authHeaders = useAuthHeaders(); // Memoized, but we use userId in deps for safety
+  const isAuthReady = useAuthReady();
   const navigate = useNavigate();
   const [insights, setInsights] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(true);
@@ -103,6 +104,7 @@ export function InsightsView() {
    * - Component mount checks to prevent state updates on unmounted components
    * - Pagination support with offset tracking via ref (avoids dependency issues)
    * - Search filtering with debouncing
+   * - Auth readiness guard to prevent 401s during initial mount
    * 
    * @param reset - If true, resets pagination and fetches from the beginning
    */
@@ -110,6 +112,11 @@ export function InsightsView() {
     // Guard: Ensure user is authenticated
     if (!userId) {
       setLoading(false);
+      return;
+    }
+
+    // Guard: Wait for auth to be ready before fetching
+    if (!isAuthReady) {
       return;
     }
 
@@ -175,7 +182,7 @@ export function InsightsView() {
         setLoadingMore(false);
       }
     }
-  }, [userId, debouncedSearch]); // CRITICAL: Use userId (string) instead of authHeaders (object), offset handled via ref
+  }, [userId, debouncedSearch, isAuthReady]); // CRITICAL: Include isAuthReady to re-trigger once auth is ready
 
   // Debounce search input
   useEffect(() => {
