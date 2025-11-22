@@ -19,45 +19,28 @@ export function useUserId(): string | null {
 
 /**
  * Hook to get auth headers with Clerk session token
- * CRITICAL: Includes both Authorization Bearer token and x-clerk-user-id for compatibility
- * Must be used inside ClerkProvider context
+ * Returns headers object with token fetched synchronously
  */
-export function useAuthHeaders(): Record<string, string> {
+export function useAuthHeaders(): () => Promise<Record<string, string>> {
   const userId = useUserId();
   const { getToken } = useAuth();
-  const [token, setToken] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchToken = async () => {
+  return useMemo(() => {
+    return async (): Promise<Record<string, string>> => {
+      if (!userId) return {};
+      
       try {
-        const sessionToken = await getToken();
-        setToken(sessionToken);
+        const token = await getToken();
+        return {
+          "x-clerk-user-id": userId,
+          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+        };
       } catch (error) {
         console.error("Failed to get Clerk token:", error);
-        setToken(null);
+        return { "x-clerk-user-id": userId };
       }
     };
-
-    if (userId) {
-      fetchToken();
-    }
   }, [userId, getToken]);
-
-  // Memoize to ensure stable reference
-  return useMemo((): Record<string, string> => {
-    if (!userId) return {};
-    
-    const headers: Record<string, string> = {
-      "x-clerk-user-id": userId,
-    };
-    
-    // Add Authorization header if token is available
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-    
-    return headers;
-  }, [userId, token]);
 }
 
 /**

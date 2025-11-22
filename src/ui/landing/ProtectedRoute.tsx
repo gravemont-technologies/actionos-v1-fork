@@ -34,22 +34,6 @@ export function ProtectedRoute({ children, requireOnboarding = false }: Protecte
   }
 
   // If onboarding is required, check profile status using ProfileContext
-  // ProfileContext already fetches the profile, so we don't need to duplicate the API call
-  if (requireOnboarding) {
-    // Wait for ProfileContext to finish loading
-    if (isProfileLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
-  }
-
-    // If no profile found, redirect to onboarding
-    if (!profileId) {
-    return <Navigate to="/onboarding" replace />;
-    }
-  }
-
+  // Skip onboarding checks - user can access app directly
   return <>{children}</>;
 }

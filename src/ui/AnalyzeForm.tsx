@@ -179,13 +179,14 @@ export function AnalyzeForm({ onComplete }: AnalyzeFormProps) {
           !formData.deadline &&
           !response) {
         try {
+          const headers = await authHeaders();
           const demoData = await api.get<{
             situation: string;
             goal: string;
             constraints: string;
             current_steps: string;
             deadline: string;
-          }>("/api/analyze/demo/data", { headers: authHeaders });
+          }>("/api/analyze/demo/data", { headers });
           
           setFormData({
             situation: demoData.situation || "",
@@ -242,6 +243,7 @@ export function AnalyzeForm({ onComplete }: AnalyzeFormProps) {
     await new Promise(resolve => setTimeout(resolve, 800));
     
     try {
+      const headers = await authHeaders();
       const response: AnalyzeResponse = await api.post<AnalyzeResponse>(
         "/api/analyze",
         {
@@ -257,7 +259,7 @@ export function AnalyzeForm({ onComplete }: AnalyzeFormProps) {
         {
           headers: {
             "x-signature": signature,
-            ...authHeaders,
+            ...headers,
           },
           timeout: 60000, // 60 seconds for LLM calls
         }
@@ -272,17 +274,14 @@ export function AnalyzeForm({ onComplete }: AnalyzeFormProps) {
       const errorMessage = (error as Error).message;
       const errorStatus = (error as any)?.status;
       
-      // Handle profile not found - redirect to onboarding
+      // Handle profile not found - show error
       if (
         errorStatus === 403 && 
         (errorMessage.includes("Profile not found") || errorMessage.includes("profile may not have been saved"))
       ) {
-        // Clear the invalid profileId
         clearProfileId();
         localStorage.removeItem("action_os_profile_id");
-        
-        // Redirect to onboarding
-        navigate("/onboarding", { replace: true });
+        setServerError("Profile not found. Please refresh and try again.");
         return;
       }
       
