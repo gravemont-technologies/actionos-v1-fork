@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import { randomUUID } from "crypto";
 import { trackEvent } from "../../analytics/events.js";
 import {
   collectInsights,
@@ -113,11 +114,20 @@ router.post("/profile", onboardingRateLimiter, async (req, res) => {
     const clerkUserId = req.body?.user_id || req.header("x-clerk-user-id") || null;
     const existingProfileId = req.body?.existing_profile_id || null;
 
-    const profile = generateProfile(
-      parsed.data as QuizResponseMap,
-      existingProfileId || undefined
-    );
-    const insights = collectInsights(parsed.data);
+    // Support empty responses for auto-created profiles (when onboarding is disabled)
+    const isAutoCreate = Object.keys(parsed.data).length === 0;
+    
+    const profile = isAutoCreate 
+      ? {
+          profile_id: existingProfileId || randomUUID().slice(0, 12),
+          tags: ["SYSTEMATIC", "HIGH_LEVERAGE", "MEDIUM_RISK", "ACTION_READY"],
+          baseline: { ipp: 50, but: 50 },
+          strengths: ["Operational rigor", "Action bias"],
+          metadata: {}
+        }
+      : generateProfile(parsed.data as QuizResponseMap, existingProfileId || undefined);
+    
+    const insights = isAutoCreate ? [] : collectInsights(parsed.data);
 
     // Save profile to Supabase (with consent flag from request if provided)
     const consentToStore = req.body?.consent_to_store === true;

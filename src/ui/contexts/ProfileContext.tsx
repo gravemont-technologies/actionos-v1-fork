@@ -86,11 +86,28 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
             localStorage.setItem("action_os_profile_id", fetchedProfileId);
           }
         } else {
-          // No profile found - user needs to complete onboarding
-          setProfileIdState(null);
-          // Clear any stale localStorage to prevent race conditions
-          if (typeof window !== "undefined") {
-            localStorage.removeItem("action_os_profile_id");
+          // No profile found - auto-create minimal profile (onboarding disabled)
+          try {
+            const createResponse = await api.post<{ profile_id: string }>(
+              "/api/onboarding/profile",
+              {
+                responses: {}, // Empty responses for auto-created profile
+                consent_to_store: true
+              }
+            );
+            
+            if (!isCancelled && createResponse.profile_id) {
+              setProfileIdState(createResponse.profile_id);
+              if (typeof window !== "undefined") {
+                localStorage.setItem("action_os_profile_id", createResponse.profile_id);
+              }
+            }
+          } catch (createErr) {
+            console.error("Failed to auto-create profile:", createErr);
+            setProfileIdState(null);
+            if (typeof window !== "undefined") {
+              localStorage.removeItem("action_os_profile_id");
+            }
           }
         }
       } catch (err) {
