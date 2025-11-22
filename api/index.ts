@@ -13,12 +13,8 @@ let appInstance: any = null;
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (!appInstance) {
-      // Import from compiled dist in production, src in dev
-      const modulePath = process.env.NODE_ENV === 'production' 
-        ? '../dist/server/index.js'
-        : '../src/server/index.js';
-      
-      const { default: app } = await import(modulePath);
+      // Import from source - Vercel will handle TypeScript compilation
+      const { app } = await import('../src/server/index.js');
       appInstance = app;
     }
     
