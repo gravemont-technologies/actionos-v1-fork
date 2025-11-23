@@ -43,6 +43,10 @@ lerna-debug.log*
 # ============================================================================
 *.test.js
 *.test.tsx
+.vitest/
+test-results/
+coverage/
+*.coverage
 
 # ============================================================================
 # TEMPORARY/LOCAL FILES
@@ -52,6 +56,18 @@ lerna-debug.log*
 .specstory
 .cursor
 .lighthouserc.json
+*.tmp
+*.temp
+.temp/
+
+# ============================================================================
+# SCRIPTS (whitelist specific node scripts)
+# ============================================================================
+*.sh
+*.ps1
+!scripts/*.mjs
+!scripts/*.js
+!scripts/*.ts
 
 # ============================================================================
 # EDITOR/IDE FILES
