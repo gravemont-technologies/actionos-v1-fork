@@ -57,7 +57,10 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
 
   // Fetch profile_id from API when user is authenticated but profileId is not set
   useEffect(() => {
+    console.log('[ProfileContext] Auth state:', { isClerkLoaded, authReady, userId: user?.id, hasProfileId: !!profileId });
+    
     if (!isClerkLoaded || !authReady) {
+      console.log('[ProfileContext] Waiting for auth...', { isClerkLoaded, authReady });
       return;
     }
 
@@ -82,7 +85,10 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
       setIsLoading(true);
       setError(null);
       try {
-        console.log('[ProfileContext] Fetching profile status...');
+        console.log('[ProfileContext] Fetching profile status with headers:', { 
+          hasAuth: !!headers.Authorization,
+          headersKeys: Object.keys(headers)
+        });
         const data = await api.get<{ hasProfile: boolean; profileId: string | null }>(
           "/api/auth/status",
           { headers }

@@ -102,7 +102,10 @@ export function useAuthState(): { headers: Record<string, string>; isReady: bool
   const [isReady, setIsReady] = useState(false);
   
   useEffect(() => {
+    console.log('[useAuthState] Effect triggered:', { userId, isReady });
+    
     if (!userId) {
+      console.log('[useAuthState] No userId - marking ready without auth');
       flushSync(() => {
         setHeaders({});
         setIsReady(true);
@@ -117,6 +120,7 @@ export function useAuthState(): { headers: Record<string, string>; isReady: bool
         // Check user-scoped cache first
         const cachedToken = getCachedToken(userId);
         if (cachedToken) {
+          console.log('[useAuthState] Using cached token');
           if (!cancelled) {
             flushSync(() => {
               setHeaders({
@@ -130,10 +134,14 @@ export function useAuthState(): { headers: Record<string, string>; isReady: bool
         }
 
         // Fetch fresh token if not cached
+        console.log('[useAuthState] Fetching fresh token from Clerk...');
         const token = await getToken();
+        console.log('[useAuthState] Token result:', { hasToken: !!token, tokenLength: token?.length });
+        
         if (!cancelled) {
           if (token) {
             setCachedToken(userId, token); // Cache with user scope
+            console.log('[useAuthState] Token cached, setting headers');
             flushSync(() => {
               setHeaders({
                 "x-clerk-user-id": userId,
@@ -142,21 +150,24 @@ export function useAuthState(): { headers: Record<string, string>; isReady: bool
               setIsReady(true);
             });
           } else {
-            console.warn('[useAuthState] No token returned from getToken()');
+            console.error('[useAuthState] ERROR: No token returned from getToken() - user might not be authenticated');
             // Clear potentially stale cache
             sessionStorage.removeItem(`clerk_token_${userId}`);
+            // DO NOT mark as ready if we have no token - this will cause 401s
+            console.warn('[useAuthState] Not marking as ready - no valid token');
             flushSync(() => {
-              setHeaders({ "x-clerk-user-id": userId });
-              setIsReady(true);
+              setHeaders({});
+              setIsReady(false); // Keep waiting for valid token
             });
           }
         }
       } catch (error) {
         if (!cancelled) {
-          console.error("Failed to get Clerk token:", error);
+          console.error("[useAuthState] ERROR: Failed to get Clerk token:", error);
+          // On error, don't mark as ready either
           flushSync(() => {
-            setHeaders({ "x-clerk-user-id": userId });
-            setIsReady(true);
+            setHeaders({});
+            setIsReady(false);
           });
         }
       }
