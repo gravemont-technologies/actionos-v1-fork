@@ -9,7 +9,7 @@
     "npm": ">=9.0.0"
   },
   "scripts": {
-    "prepare": "husky install",
+    "prepare": "node -e \"const {execSync}=require('child_process'); if(process.env.CI||process.env.VERCEL){console.log('CI: skip husky'); process.exit(0);} try{require.resolve('husky'); execSync('husky install',{stdio:'inherit'});}catch(e){console.log('husky not installed, skipping');}\"",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "tsx src/server/index.ts",
     "dev:client": "vite",
