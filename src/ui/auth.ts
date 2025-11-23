@@ -169,6 +169,8 @@ export function useAuthState(): { headers: Record<string, string>; isReady: bool
   return { headers, isReady };
 }
 
+// Backwards-compatible alias: some files import `useAuth`.
+export const useAuth = useAuthState;
 /**
  * Legacy hook for backwards compatibility
  * @deprecated Use useAuthState() instead to avoid double token fetch
