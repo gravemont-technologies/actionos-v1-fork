@@ -1,109 +1,86 @@
 import { Router } from "express";
-import { randomUUID } from "crypto";
 import { getSupabaseClient } from "../db/supabase.js";
 import { clerkAuthMiddleware } from "../middleware/clerkAuth.js";
 import { logger } from "../utils/logger.js";
+import { asyncHandler } from "../middleware/asyncHandler.js";
+import { AppError } from "../middleware/errorHandler.js";
 
 const router = Router();
 
-// Apply auth middleware to all routes
+// Apply auth middleware to all routes in this router
 router.use(clerkAuthMiddleware);
 
 /**
  * GET /api/auth/status
- * Checks if the authenticated user has a profile and returns their onboarding status.
- * Used by the frontend to determine whether to show the dashboard or onboarding flow.
+ * Checks if the authenticated user has a profile and returns it.
  */
-router.get("/status", async (req, res) => {
-  const userId = req.userId;
+router.get("/status", asyncHandler(async (req, res) => {
+  const userId = res.locals.userId; // Use res.locals
+  const supabase = getSupabaseClient();
+  
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("user_id", userId)
+    .single();
 
-  if (!userId) {
-    return res.status(401).json({ error: "Unauthorized" });
+  if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found, which is not an error here
+    logger.error({ userId, error }, "Error checking profile status");
+    throw new AppError('DB_FETCH_FAILED', 'Failed to fetch profile status', 500);
   }
 
-  try {
-    const supabase = getSupabaseClient();
-    
-    // Check if profile exists for this user
-    const { data, error } = await supabase
-      .from("profiles" as any)
-      .select("profile_id")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (error) {
-      logger.error({ userId, error }, "Error checking auth status");
-      throw error;
-    }
-
-    const profileId = (data as any)?.profile_id || null;
-
-    return res.json({
-      isAuthenticated: true,
-      userId,
-      hasProfile: !!profileId,
-      profileId,
-      onboarded: !!profileId
-    });
-  } catch (error) {
-    logger.error({ userId, error }, "Failed to check auth status");
-    return res.status(500).json({ error: "Failed to check status" });
-  }
-});
+  res.json({
+    authenticated: true,
+    userId,
+    profile: profile || null, // Return the full profile or null
+  });
+}));
 
 /**
  * POST /api/auth/create-profile
- * Auto-creates a minimal profile for authenticated user
- * No onboarding required - instant access to app
+ * Auto-creates a minimal profile for an authenticated user if one doesn't exist.
+ * This is idempotent.
  */
-router.post("/create-profile", async (req, res) => {
-  const userId = req.userId;
+router.post("/create-profile", asyncHandler(async (req, res) => {
+  const userId = res.locals.userId; // Use res.locals
+  const supabase = getSupabaseClient();
 
-  if (!userId) {
-    return res.status(401).json({ error: "Unauthorized" });
+  // 1. Check if profile already exists
+  const { data: existingProfile, error: selectError } = await supabase
+    .from("profiles")
+    .select("profile_id")
+    .eq("user_id", userId)
+    .single();
+
+  if (selectError && selectError.code !== 'PGRST116') {
+    logger.error({ userId, error: selectError }, "Error checking for existing profile");
+    throw new AppError('DB_CHECK_FAILED', 'Failed to check for existing profile', 500);
   }
 
-  try {
-    const supabase = getSupabaseClient();
-    
-    // Check if profile already exists
-    const { data: existing } = await supabase
-      .from("profiles" as any)
-      .select("profile_id")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (existing) {
-      return res.json({ profileId: (existing as any).profile_id });
-    }
-
-    // Create minimal profile with default baselines
-    const profileId = randomUUID();
-    const { error: insertError } = await supabase
-      .from("profiles" as any)
-      .insert({
-        profile_id: profileId,
-        user_id: userId,
-        tags: [],
-        baseline_ipp: 50.0,
-        baseline_but: 50.0,
-        strengths: [],
-        consent_to_store: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-
-    if (insertError) {
-      logger.error({ userId, error: insertError }, "Failed to create profile");
-      return res.status(500).json({ error: "Failed to create profile" });
-    }
-
-    logger.info({ userId, profileId }, "Auto-created profile");
-    return res.json({ profileId });
-  } catch (error) {
-    logger.error({ userId, error }, "Error in create-profile");
-    return res.status(500).json({ error: "Failed to create profile" });
+  if (existingProfile) {
+    return res.status(200).json({ profile: existingProfile, message: 'Profile already exists.' });
   }
-});
+
+  // 2. Create a new profile with default values
+  const { data: newProfile, error: insertError } = await supabase
+    .from("profiles")
+    .insert({
+      user_id: userId,
+      tags: [],
+      baseline_ipp: 50.0,
+      baseline_but: 50.0,
+      strengths: [],
+      consent_to_store: true,
+    })
+    .select()
+    .single();
+
+  if (insertError) {
+    logger.error({ userId, error: insertError }, "Failed to create profile");
+    throw new AppError('DB_INSERT_FAILED', 'Failed to create profile', 500);
+  }
+
+  res.status(201).json({ profile: newProfile });
+}));
 
 export default router;

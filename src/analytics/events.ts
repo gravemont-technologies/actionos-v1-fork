@@ -3,7 +3,7 @@ import { logger } from "../server/utils/logger.js";
 type EventName = "onboard.complete" | "analyze.response" | "step1.marked_done" | "step1.feedback" | "analyze.follow_up" | "retrospective.complete" | "analyze.micro_nudge_generated" | "analyze.micro_nudge_fallback" | "analyze.follow_up_quality";
 
 type EventPayloadMap = {
-  "onboard.complete": { profileId: string; tags: string[] };
+  "onboard.complete": { profileId: string; userId: string; tags: string[] };
   "analyze.response": {
     profileId: string;
     signature: string;

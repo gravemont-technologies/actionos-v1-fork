@@ -6,108 +6,63 @@
  * Handles token expiration and invalid tokens.
  */
 
-import { Request, Response, NextFunction } from "express";
-import { verifyToken } from "@clerk/backend";
-import { env } from "../config/env.js";
-import { AuthenticationError } from "./errorHandler.js";
-import { logger } from "../utils/logger.js";
-
-declare global {
-  namespace Express {
-    interface Request {
-      userId?: string;
-    }
-  }
-}
+import { Request, Response, NextFunction } from 'express';
+import { verifyToken } from '@clerk/backend';
+import { AppError } from './errorHandler.js';
 
 /**
- * Middleware to verify Clerk JWT token
- * 
- * Extracts token from Authorization header or x-clerk-token header.
- * Verifies token and attaches userId to request.
- * 
- * @param options.skipVerification - Skip token verification (for development only)
+ * Middleware to verify a Clerk JWT token.
+ * It extracts the token from the Authorization header, verifies it using the Clerk SDK,
+ * and attaches the user ID and session ID to `res.locals`.
+ *
+ * This middleware provides robust error handling by passing structured `AppError`
+ * instances to the central error handler.
  */
 export async function clerkAuthMiddleware(
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> {
-  const isTest = process.env.NODE_ENV === "test" || env.NODE_ENV === "test";
-  const isDevelopment = env.NODE_ENV === "development";
-  
-  // In development mode, prioritize header-based auth for easier workflow
-  // This allows using x-clerk-user-id header even when CLERK_SECRET_KEY is set
-  // Production always requires proper token verification
-  if (isDevelopment && req.header("x-clerk-user-id")) {
-    const userId = req.header("x-clerk-user-id") || req.headers["x-clerk-user-id"] as string | undefined;
-    if (userId) {
-      req.userId = userId;
-      return next();
-    }
-  }
-  
-  // Skip in test mode or if CLERK_SECRET_KEY not set
-  if (isTest || !env.CLERK_SECRET_KEY) {
-    // Fallback to header for development/testing
-    const userId = req.header("x-clerk-user-id") || req.headers["x-clerk-user-id"] as string | undefined;
-    if (userId) {
-      req.userId = userId;
-      return next();
-    }
-    // In test mode, allow requests without auth (for health checks, etc.)
-    if (isTest) {
-      // Set a default test user ID if none provided (for tests that don't need auth)
-      req.userId = "test_user_default";
-      return next();
-    }
-    // In dev mode without key, require header
-    return next(new AuthenticationError("Missing x-clerk-user-id header"));
-  }
-
   try {
-    // Extract token from Authorization header or x-clerk-token
-    const authHeader = req.header("authorization");
-    const tokenHeader = req.header("x-clerk-token");
-
-    let token: string | undefined;
-
-    if (authHeader?.startsWith("Bearer ")) {
-      token = authHeader.substring(7);
-    } else if (tokenHeader) {
-      token = tokenHeader;
+    const secretKey = process.env.CLERK_SECRET_KEY;
+    if (!secretKey) {
+      console.error('[clerkAuth] CLERK_SECRET_KEY is not configured.');
+      // Pass a structured error to the central handler
+      return next(new AppError('MISSING_SECRET_KEY', 'Server configuration error', 500));
     }
+
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.replace('Bearer ', '').trim();
 
     if (!token) {
-      return next(new AuthenticationError("Missing authentication token"));
+      return next(new AppError('NO_TOKEN', 'Missing authentication token', 401));
     }
 
-    // Verify token using Clerk backend SDK
-    try {
-      const payload = await verifyToken(token, {
-        secretKey: env.CLERK_SECRET_KEY!,
-      });
-
-      // Extract user ID from verified session
-      req.userId = payload.sub; // Clerk uses 'sub' for user ID
-      next();
-    } catch (error) {
-      const requestLogger = logger.child({
-        requestId: req.id,
-        path: req.path,
-      });
-
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      requestLogger.warn({ error: errorMessage }, "Token verification failed");
-
-      if (errorMessage.includes("expired")) {
-        return next(new AuthenticationError("Token expired"));
-      } else {
-        return next(new AuthenticationError("Invalid authentication token"));
-      }
+    const payload = await verifyToken(token, { secretKey });
+    
+    const userId = payload.userId;
+    if (!userId || typeof userId !== 'string') {
+      return next(new AppError('TOKEN_MISSING_USERID', 'Token is valid but missing a valid userId claim', 401));
     }
-  } catch (error) {
-    next(new AuthenticationError("Authentication failed"));
+    
+    const sessionId = payload.sid;
+    if (!sessionId) {
+        return next(new AppError('TOKEN_MISSING_SID', 'Token is valid but missing session ID (sid) claim', 401));
+    }
+
+    // Store in res.locals (type-safe due to src/types/express.d.ts)
+    res.locals.userId = userId;
+    res.locals.sessionId = sessionId;
+    
+    next();
+  } catch (error: any) {
+    const errorCode = error.code || 'TOKEN_INVALID';
+    const errorMessage = error.message || 'Authentication failed';
+    
+    console.error(`[clerkAuth] ${errorCode}:`, errorMessage);
+    
+    // Pass a structured AppError to the central error handler
+    next(new AppError(errorCode, 'Authentication failed', 401));
   }
 }
 

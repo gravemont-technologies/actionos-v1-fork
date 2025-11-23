@@ -55,10 +55,10 @@ const analyzeSchema = z.object({
   resources: z.string().max(500).trim().optional(),
 });
 
-router.post("/", validateOwnership, async (req, res, next) => {
+router.post("/", validateOwnership, asyncHandler(async (req, res, next) => {
   const requestLogger = logger.child({
     requestId: req.id,
-    userId: req.userId,
+    userId: res.locals.userId, // Use res.locals
     profileId: req.body?.profile_id,
   });
 

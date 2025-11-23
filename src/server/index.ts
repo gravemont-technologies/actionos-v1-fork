@@ -44,11 +44,14 @@ app.use(sanitizeInput);
 
 // 4. Request logging middleware
 app.use((req, res, next) => {
+  // res.locals.userId is attached by clerkAuthMiddleware
+  const userId = res.locals.userId || (req.headers['x-clerk-user-id'] as string | undefined);
+
   const requestLogger = logger.child({
     requestId: req.id,
     method: req.method,
     path: req.path,
-    userId: req.userId,
+    userId: userId,
   });
   requestLogger.debug("Incoming request");
 

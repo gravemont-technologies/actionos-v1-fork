@@ -6,7 +6,7 @@ import { ProfileStore } from "../store/profileStore.js";
 import { clerkAuthMiddleware } from "../middleware/clerkAuth.js";
 import { validateOwnership } from "../middleware/validateOwnership.js";
 import { feedbackRateLimiter } from "../middleware/rateLimiter.js";
-import { ValidationError, ExternalServiceError } from "../middleware/errorHandler.js";
+import { ValidationError, AppError, ExternalServiceError } from "../middleware/errorHandler.js";
 import { logger } from "../utils/logger.js";
 import { buildRetrospectivePrompt } from "../llm/prompt_builder.js";
 import { llmProvider } from "../llm/client.js";
@@ -14,10 +14,11 @@ import { longTimeoutMiddleware } from "../middleware/timeout.js";
 import { retrospectiveInsightsSchema } from "../llm/schema.js";
 import { getSupabaseClient } from "../db/supabase.js";
 import { getProfileStore, getSignatureCache } from "../store/singletons.js";
+import { asyncHandler } from "../middleware/asyncHandler.js";
 
 const router = Router();
 
-// Apply middleware to feedback routes
+// Apply middleware to all feedback routes
 router.use(clerkAuthMiddleware);
 router.use(feedbackRateLimiter);
 
@@ -28,16 +29,16 @@ const feedbackSchema = z.object({
   outcome: z.string().max(80).trim().optional(),
 });
 
-router.post("/", validateOwnership, async (req, res, next) => {
+router.post("/", validateOwnership, asyncHandler(async (req, res) => {
   const requestLogger = logger.child({
     requestId: req.id,
-    userId: req.userId,
+    userId: res.locals.userId,
     profileId: req.body?.profile_id,
   });
 
   const parsed = feedbackSchema.safeParse(req.body);
   if (!parsed.success) {
-    return next(new ValidationError(parsed.error.message));
+    throw new ValidationError(parsed.error.message);
   }
 
   const profileStore: ProfileStore = getProfileStore();
@@ -65,32 +66,32 @@ router.post("/", validateOwnership, async (req, res, next) => {
     outcome: parsed.data.outcome,
   });
 
-  return res.json({
+  res.json({
     status: "recorded",
     baseline: result.baseline,
     previous_baseline: result.previous_baseline,
     delta: result.delta,
   });
-});
+}));
 
-router.get("/recent", validateOwnership, async (req, res, next) => {
+router.get("/recent", validateOwnership, asyncHandler(async (req, res) => {
   const profileStore: ProfileStore = getProfileStore();
   const profileId = req.query.profile_id as string;
   const feedback = await profileStore.listFeedback(profileId);
-  return res.json({ feedback });
-});
+  res.json({ feedback });
+}));
 
-router.get("/baseline", validateOwnership, async (req, res, next) => {
+router.get("/baseline", validateOwnership, asyncHandler(async (req, res) => {
   const profileStore: ProfileStore = getProfileStore();
   const profileId = req.query.profile_id as string;
   const baseline = await profileStore.getBaseline(profileId);
-  return res.json({ baseline });
-});
+  res.json({ baseline });
+}));
 
-router.get("/timer", validateOwnership, async (req, res, next) => {
+router.get("/timer", validateOwnership, asyncHandler(async (req, res, next) => {
   const requestLogger = logger.child({
     requestId: req.id,
-    userId: req.userId,
+    userId: res.locals.userId,
     profileId: req.query.profile_id,
     signature: req.query.signature,
   });
@@ -145,12 +146,12 @@ router.get("/timer", validateOwnership, async (req, res, next) => {
     requestLogger.error({ error: (error as Error).message }, "Failed to get timer");
     return next(new ExternalServiceError((error as Error).message, "Database"));
   }
-});
+}));
 
-router.get("/active-step", validateOwnership, async (req, res, next) => {
+router.get("/active-step", validateOwnership, asyncHandler(async (req, res, next) => {
   const requestLogger = logger.child({
     requestId: req.id,
-    userId: req.userId,
+    userId: res.locals.userId,
     profileId: req.query.profile_id,
   });
 
@@ -199,12 +200,12 @@ router.get("/active-step", validateOwnership, async (req, res, next) => {
     // Return null instead of error to prevent UI blocking
     return res.json({ activeStep: null, is_abandoned: false, hours_elapsed: 0 });
   }
-});
+}));
 
-router.get("/stats", validateOwnership, async (req, res, next) => {
+router.get("/stats", validateOwnership, asyncHandler(async (req, res, next) => {
   const requestLogger = logger.child({
     requestId: req.id,
-    userId: req.userId,
+    userId: res.locals.userId,
     profileId: req.query.profile_id,
   });
 
@@ -288,13 +289,13 @@ router.get("/stats", validateOwnership, async (req, res, next) => {
       streak: 0,
     });
   }
-});
+}));
 
 // Insight deltas endpoint - GET for <=50 signatures
-router.get("/insight-deltas", validateOwnership, async (req, res, next) => {
+router.get("/insight-deltas", validateOwnership, asyncHandler(async (req, res, next) => {
   const requestLogger = logger.child({
     requestId: req.id,
-    userId: req.userId,
+    userId: res.locals.userId,
     profileId: req.query.profile_id,
   });
 
@@ -351,7 +352,7 @@ router.get("/insight-deltas", validateOwnership, async (req, res, next) => {
     requestLogger.error({ profileId, error: (error as Error).message }, "Insight deltas fetch failed");
     return res.json({ deltas: {} });
   }
-});
+}));
 
 // Insight deltas endpoint - POST for >50 up to 200 signatures
 const insightDeltasSchema = z.object({
@@ -359,10 +360,10 @@ const insightDeltasSchema = z.object({
   signatures: z.array(z.string().min(32).max(128).regex(/^[a-f0-9]+$/i)).min(1).max(200),
 });
 
-router.post("/insight-deltas", validateOwnership, async (req, res, next) => {
+router.post("/insight-deltas", validateOwnership, asyncHandler(async (req, res, next) => {
   const requestLogger = logger.child({
     requestId: req.id,
-    userId: req.userId,
+    userId: res.locals.userId,
     profileId: req.body?.profile_id,
   });
 
@@ -400,12 +401,12 @@ router.post("/insight-deltas", validateOwnership, async (req, res, next) => {
     requestLogger.error({ profileId: parsed.data.profile_id, error: (error as Error).message }, "Insight deltas fetch failed");
     return res.json({ deltas: {} });
   }
-});
+}));
 
-router.get("/recent-wins", validateOwnership, async (req, res, next) => {
+router.get("/recent-wins", validateOwnership, asyncHandler(async (req, res, next) => {
   const requestLogger = logger.child({
     requestId: req.id,
-    userId: req.userId,
+    userId: res.locals.userId,
     profileId: req.query.profile_id,
   });
 
@@ -470,12 +471,12 @@ router.get("/recent-wins", validateOwnership, async (req, res, next) => {
     requestLogger.error({ profileId, error: (error as Error).message }, "Recent wins fetch failed");
     return res.json({ wins: [] });
   }
-});
+}));
 
-router.get("/outcome-autocomplete", validateOwnership, async (req, res, next) => {
+router.get("/outcome-autocomplete", validateOwnership, asyncHandler(async (req, res, next) => {
   const requestLogger = logger.child({
     requestId: req.id,
-    userId: req.userId,
+    userId: res.locals.userId,
     profileId: req.query.profile_id,
   });
 
@@ -526,12 +527,12 @@ router.get("/outcome-autocomplete", validateOwnership, async (req, res, next) =>
     requestLogger.error({ profileId, error: (error as Error).message }, "Outcome autocomplete fetch failed");
     return res.json({ outcomes: [] });
   }
-});
+}));
 
-router.get("/sparkline-data", validateOwnership, async (req, res, next) => {
+router.get("/sparkline-data", validateOwnership, asyncHandler(async (req, res, next) => {
   const requestLogger = logger.child({
     requestId: req.id,
-    userId: req.userId,
+    userId: res.locals.userId,
     profileId: req.query.profile_id,
   });
 
@@ -612,7 +613,7 @@ router.get("/sparkline-data", validateOwnership, async (req, res, next) => {
     requestLogger.error({ profileId, error: (error as Error).message }, "Sparkline data fetch failed");
     return res.json({ data: [] });
   }
-});
+}));
 
 // Outcome Retrospective endpoint
 const retrospectiveSchema = z.object({
@@ -624,10 +625,10 @@ const retrospectiveSchema = z.object({
   original_situation: z.string().min(1).max(2000).trim(),
 });
 
-router.post("/retrospective", validateOwnership, longTimeoutMiddleware, async (req, res, next) => {
+router.post("/retrospective", validateOwnership, longTimeoutMiddleware, asyncHandler(async (req, res, next) => {
   const requestLogger = logger.child({
     requestId: req.id,
-    userId: req.userId,
+    userId: res.locals.userId,
     profileId: req.body?.profile_id,
   });
 
@@ -700,7 +701,7 @@ router.post("/retrospective", validateOwnership, longTimeoutMiddleware, async (r
     requestLogger.error({ error: (error as Error).message }, "Retrospective failed");
     return next(new ExternalServiceError((error as Error).message, "LLM"));
   }
-});
+}));
 
 export default router;
 

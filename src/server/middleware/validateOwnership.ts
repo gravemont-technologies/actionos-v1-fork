@@ -8,145 +8,66 @@
 
 import { Request, Response, NextFunction } from "express";
 import { getSupabaseClient } from "../db/supabase.js";
-import { AuthorizationError } from "./errorHandler.js";
+import { AuthorizationError, AppError } from "./errorHandler.js";
 import { logger } from "../utils/logger.js";
 
 /**
- * Middleware to validate profile ownership
- * 
+ * Middleware to validate that the `profile_id` provided in the request
+ * belongs to the authenticated user.
+ *
  * Expects:
- * - req.userId (from clerkAuthMiddleware)
- * - req.body.profile_id or req.query.profile_id
- * 
- * Verifies profile exists and belongs to authenticated user.
+ * - `res.locals.userId` (from `clerkAuthMiddleware`)
+ * - `req.body.profile_id` or `req.query.profile_id`
  */
 export async function validateOwnership(
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> {
-  // Get profile_id from body or query
-  // Note: In test mode, body might not be parsed yet, so we check both
-  const profileId = (req.body?.profile_id || req.query?.profile_id) as string | undefined;
-
-  if (!profileId) {
-    // In test mode, allow validation to pass through if no profile_id (for validation tests)
-    if (process.env.NODE_ENV === "test") {
-      return next();
-    }
-    return next(new Error("profile_id is required for ownership validation"));
-  }
-
-  if (!req.userId) {
-    return next(new Error("User ID required for ownership validation (ensure clerkAuthMiddleware is applied first)"));
-  }
-
   try {
+    const profileId = (req.body?.profile_id || req.query?.profile_id) as string | undefined;
+    const userId = res.locals.userId;
+
+    if (!profileId) {
+      return next(new AppError("MISSING_PROFILE_ID", "profile_id is required for ownership validation", 400));
+    }
+
+    if (!userId) {
+      // This should not happen if clerkAuthMiddleware is applied first, but it's a good safeguard.
+      return next(new AppError("MISSING_USER_ID", "User ID not found in request context", 500));
+    }
+
     const supabase = getSupabaseClient();
     const { data, error } = await supabase
       .from("profiles")
       .select("user_id")
       .eq("profile_id", profileId)
-      .maybeSingle(); // Use maybeSingle to handle missing profiles gracefully
+      .single(); // Use single() to enforce that profile_id is unique
 
     if (error) {
-      const errorCode = (error as { code?: string })?.code;
-      const errorMessage = error.message;
-      const requestLogger = logger.child({
-        requestId: req.id,
-        profileId,
-        userId: req.userId,
-        error: errorMessage,
-        code: errorCode,
-      });
-      
-      // Provide helpful error message for database schema issues
-      if (errorCode === "PGRST205" || errorMessage.includes("table") || errorMessage.includes("schema cache")) {
-        requestLogger.error("Database schema not initialized");
-        return next(new AuthorizationError(
-          "Database schema not initialized. Please run supabase/schema.sql in your Supabase SQL Editor. See docs/README.md for setup instructions."
-        ));
+      // If no profile is found, Supabase returns an error with code PGRST116
+      if (error.code === 'PGRST116') {
+        logger.warn({ userId, profileId }, "Attempted to access a non-existent profile.");
+        return next(new AuthorizationError("Profile not found."));
       }
-      
-      requestLogger.error("Database error during ownership check");
-      return next(new AuthorizationError("Database error during ownership validation"));
+      // For other database errors
+      logger.error({ userId, profileId, error }, "Database error during ownership check");
+      return next(new AppError('DB_OWNERSHIP_CHECK_FAILED', 'Database error during ownership validation', 500));
     }
 
-    if (!data) {
-      const requestLogger = logger.child({
-        requestId: req.id,
+    if (data.user_id !== userId) {
+      logger.warn({
+        userId,
         profileId,
-        userId: req.userId,
-      });
-      
-      // In test mode, allow missing profiles to pass through (for validation tests)
-      const isTest = process.env.NODE_ENV === "test";
-      if (isTest) {
-        requestLogger.debug("Profile not found in test mode - allowing to pass through");
-        return next();
-      }
-      
-      // In development, provide helpful message suggesting re-onboarding
-      const isDevelopment = process.env.NODE_ENV === "development";
-      if (isDevelopment) {
-        requestLogger.warn("Profile not found - user may need to complete onboarding");
-        return next(new AuthorizationError(
-          "Profile not found. This profile may not have been saved. Please complete onboarding again."
-        ));
-      }
-      
-      requestLogger.warn("Profile not found for ownership check");
-      return next(new AuthorizationError("Profile not found"));
+        expectedOwner: data.user_id,
+      }, "Ownership validation failed: profile belongs to another user.");
+      return next(new AuthorizationError("You do not have permission to access this profile."));
     }
 
-    // Handle legacy profiles (user_id is null) - update them in development/test
-    const isDevelopment = process.env.NODE_ENV === "development";
-    const isTest = process.env.NODE_ENV === "test";
-    if (!data.user_id && (isDevelopment || isTest) && req.userId) {
-      // In development/test, update the profile with the current user_id
-      const requestLogger = logger.child({
-        requestId: req.id,
-        profileId,
-        userId: req.userId,
-      });
-      requestLogger.info("Updating legacy profile with user_id");
-      
-      await supabase
-        .from("profiles")
-        .update({ user_id: req.userId })
-        .eq("profile_id", profileId);
-      
-      // Continue after updating
-      return next();
-    }
-
-    // Check ownership - user_id must match
-    // In test mode, be more lenient (allow if user_id matches or is null)
-    if (data.user_id !== req.userId) {
-      // In test mode, if profile has no user_id, allow it (will be updated above)
-      if (isTest && !data.user_id) {
-        return next();
-      }
-      
-      const requestLogger = logger.child({
-        requestId: req.id,
-        profileId,
-        userId: req.userId,
-        profileUserId: data.user_id,
-      });
-      requestLogger.warn("Ownership validation failed");
-      return next(new AuthorizationError("Access denied"));
-    }
-
-    // Ownership validated, continue
+    // Ownership is validated, proceed to the next middleware/handler
     next();
   } catch (error) {
-    const requestLogger = logger.child({
-      requestId: req.id,
-      profileId,
-      userId: req.userId,
-    });
-    requestLogger.error({ error }, "Error during ownership validation");
+    // Catch any unexpected errors during the process
     next(error);
   }
 }
