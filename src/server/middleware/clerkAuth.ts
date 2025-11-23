@@ -40,14 +40,16 @@ export async function clerkAuthMiddleware(
 
     const payload = await verifyToken(token, { secretKey });
     
-    const userId = payload.userId;
+    // Use standard Clerk claims: sub for userId, jti for session identifier
+    const userId = payload.userId || payload.sub;
     if (!userId || typeof userId !== 'string') {
       return next(new AppError('TOKEN_MISSING_USERID', 'Token is valid but missing a valid userId claim', 401));
     }
     
-    const sessionId = payload.sid;
+    // Use jti (JWT ID) as session identifier since sid is not included by Clerk
+    const sessionId = (payload.sid || payload.jti) as string;
     if (!sessionId) {
-        return next(new AppError('TOKEN_MISSING_SID', 'Token is valid but missing session ID (sid) claim', 401));
+        return next(new AppError('TOKEN_MISSING_SID', 'Token is valid but missing session ID (sid/jti) claim', 401));
     }
 
     // Store in res.locals (type-safe due to src/types/express.d.ts)
