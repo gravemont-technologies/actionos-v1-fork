@@ -15,6 +15,7 @@ import { retrospectiveInsightsSchema } from "../llm/schema.js";
 import { getSupabaseClient } from "../db/supabase.js";
 import { getProfileStore, getSignatureCache } from "../store/singletons.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
+import { recordStepMetrics, mapDeltaBucketToComponents } from "../utils/metricsCalculator.js";
 
 const router = Router();
 
@@ -28,6 +29,44 @@ const feedbackSchema = z.object({
   slider: z.number().min(0).max(10),
   outcome: z.string().max(80).trim().optional(),
 });
+
+/**
+ * GAP FIX: Map slider value to estimated BUT components
+ * Slider 0-10 reflects user's subjective experience
+ * Uses continuous scale for realistic gradation (not hardcoded buckets)
+ * 
+ * Formula logic:
+ * - Ease: Linear mapping (slider/10 * 8 + 2) → range 2-10
+ * - Alignment: Slightly higher baseline (slider/10 * 7 + 3) → range 3-10
+ * - Friction: Inverse relationship (10 - slider/10 * 8) → range 2-10
+ */
+function sliderToBUTComponents(slider: number): {
+  easeScore: number;
+  alignmentScore: number;
+  frictionScore: number;
+} {
+  // Normalize slider to 0-10 range
+  const normalized = Math.max(0, Math.min(10, slider));
+  const normalizedRatio = normalized / 10; // 0.0 to 1.0
+  
+  // Ease: 2 (very difficult) to 10 (very easy)
+  // Linear scale: low slider = low ease
+  const easeScore = Math.round(normalizedRatio * 8 + 2);
+  
+  // Alignment: 3 (misaligned) to 10 (perfect alignment)
+  // Slightly higher baseline - even difficult tasks can be aligned with values
+  const alignmentScore = Math.round(normalizedRatio * 7 + 3);
+  
+  // Friction: 2 (minimal) to 10 (extreme)
+  // Inverse relationship: high slider = low friction
+  const frictionScore = Math.round((1 - normalizedRatio) * 8 + 2);
+  
+  return {
+    easeScore: Math.max(1, Math.min(10, easeScore)),
+    alignmentScore: Math.max(1, Math.min(10, alignmentScore)),
+    frictionScore: Math.max(0, Math.min(10, frictionScore)),
+  };
+}
 
 router.post("/", validateOwnership, asyncHandler(async (req, res) => {
   const requestLogger = logger.child({
@@ -43,7 +82,79 @@ router.post("/", validateOwnership, asyncHandler(async (req, res) => {
 
   const profileStore: ProfileStore = getProfileStore();
   const cache: SignatureCache = getSignatureCache();
+  const supabase = getSupabaseClient();
 
+  // PHASE 3 ENHANCEMENT: Record step_metrics before marking complete
+  // This captures detailed IPP/BUT breakdown for dashboard analytics
+  try {
+    // 1. Get active_steps row for step_id, timer data, and delta_bucket
+    // GAP FIX: Query delta_bucket from active_steps (not cache) + first_started_at for accurate timer
+    const { data: activeStep, error: stepError } = await supabase
+      .from("active_steps")
+      .select("id, first_started_at, delta_bucket")
+      .eq("profile_id", parsed.data.profile_id)
+      .eq("signature", parsed.data.signature)
+      .is("completed_at", null)
+      .maybeSingle();
+
+    if (stepError) {
+      requestLogger.warn({ error: stepError }, "Failed to fetch active step for metrics");
+    }
+
+    if (activeStep) {
+      const deltaBucket = activeStep.delta_bucket;
+
+      if (deltaBucket) {
+        // 3. Map delta_bucket to estimated components
+        const components = mapDeltaBucketToComponents(deltaBucket);
+
+        // 4. Calculate actual_minutes from first_started_at (GAP FIX: use first start time, not latest)
+        const firstStartedAt = new Date(activeStep.first_started_at);
+        const now = new Date();
+        const actualMinutes = Math.round((now.getTime() - firstStartedAt.getTime()) / 60000);
+
+        // 5. GAP FIX: Derive BUT components from slider instead of hardcoded defaults
+        const sliderValue = parsed.data.slider;
+        const butComponents = sliderToBUTComponents(sliderValue);
+
+        // 6. Record metrics with derived BUT estimates
+        await recordStepMetrics({
+          stepId: activeStep.id,
+          profileId: parsed.data.profile_id,
+          signature: parsed.data.signature,
+          magnitude: components.magnitude,
+          reach: components.reach,
+          depth: components.depth,
+          easeScore: butComponents.easeScore,
+          alignmentScore: butComponents.alignmentScore,
+          frictionScore: butComponents.frictionScore,
+          hadUnexpectedWins: false, // Default to no (can enhance form later)
+          estimatedMinutes: components.estimatedMinutes,
+          actualMinutes: Math.max(1, actualMinutes), // Ensure > 0
+          outcomeDescription: parsed.data.outcome,
+        });
+
+        requestLogger.debug({ 
+          deltaBucket, 
+          actualMinutes,
+          magnitude: components.magnitude,
+          reach: components.reach,
+          ease: butComponents.easeScore,
+        }, "Step metrics recorded successfully");
+      } else {
+        requestLogger.warn({ signature: parsed.data.signature }, "No delta_bucket found in active_steps (legacy data?)");
+      }
+    } else {
+      requestLogger.warn({ signature: parsed.data.signature }, "No active step found for metrics recording");
+    }
+  } catch (metricsError) {
+    // Log but don't fail the request - metrics are important but not critical
+    requestLogger.error({ 
+      error: metricsError instanceof Error ? metricsError.message : String(metricsError) 
+    }, "Failed to record step metrics (non-critical)");
+  }
+
+  // Continue with existing baseline update logic
   const result = await profileStore.markStepComplete(
     parsed.data.profile_id,
     parsed.data.signature,
@@ -217,76 +328,162 @@ router.get("/stats", validateOwnership, asyncHandler(async (req, res, next) => {
   try {
     const supabase = getSupabaseClient();
     
-    const { data, error } = await supabase
-      .from("feedback_records")
-      .select("slider, delta_ipp, recorded_at")
+    // PHASE 5 ENHANCEMENT: Query step_metrics for detailed analytics
+    // This provides actual IPP calculations instead of slider-based deltas
+    // GAP FIX: JOIN to active_steps for step descriptions using PostgREST embedded resources
+    const { data: metricsData, error: metricsError } = await supabase
+      .from("step_metrics")
+      .select(`
+        ipp_score,
+        but_score,
+        taa_score,
+        completed_at,
+        magnitude,
+        reach,
+        depth,
+        active_steps!step_id(
+          step_description,
+          signature
+        )
+      `)
       .eq("profile_id", profileId)
-      .order("recorded_at", { ascending: false });
+      .order("completed_at", { ascending: false });
 
-    if (error) {
-      requestLogger.error({ error: error.message }, "Failed to fetch feedback records");
-      throw error;
-    }
+    // Fallback to feedback_records if step_metrics is empty (legacy data or first-time users)
+    if (!metricsData || metricsData.length === 0) {
+      const { data: feedbackData, error: feedbackError } = await supabase
+        .from("feedback_records")
+        .select("slider, delta_ipp, recorded_at")
+        .eq("profile_id", profileId)
+        .order("recorded_at", { ascending: false });
 
-    if (!data || data.length === 0) {
+      if (feedbackError) {
+        requestLogger.error({ error: feedbackError.message }, "Failed to fetch feedback records");
+        throw feedbackError;
+      }
+
+      if (!feedbackData || feedbackData.length === 0) {
+        return res.json({
+          completed: 0,
+          totalIpp: "0.0",
+          avgTAA: "0.0",
+          streak: 0,
+          recentSteps: [],
+        });
+      }
+
+      // Legacy calculation using feedback_records
+      const completed = feedbackData.filter((r) => Number(r.slider) >= 7).length;
+      const totalDeltaIpp = feedbackData.reduce((sum, r) => sum + Number(r.delta_ipp || 0), 0);
+      
+      const today = new Date().toISOString().split("T")[0];
+      const daysWithFeedback = new Set<string>();
+      feedbackData.forEach((r) => {
+        const date = new Date(r.recorded_at);
+        if (!isNaN(date.getTime())) {
+          daysWithFeedback.add(date.toISOString().split("T")[0]);
+        }
+      });
+
+      let streak = 0;
+      if (daysWithFeedback.has(today)) {
+        streak = 1;
+        let checkDate = new Date(today);
+        checkDate.setDate(checkDate.getDate() - 1);
+        while (daysWithFeedback.has(checkDate.toISOString().split("T")[0])) {
+          streak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        }
+      }
+
       return res.json({
-        completed: 0,
-        totalDeltaIpp: "0.0",
-        streak: 0,
+        completed,
+        totalIpp: totalDeltaIpp.toFixed(1),
+        avgTAA: "N/A",
+        streak,
+        recentSteps: [],
       });
     }
 
-    // Calculate completed (slider >= 7)
-    const completed = data.filter((r) => Number(r.slider) >= 7).length;
+    // NEW: Calculate stats from step_metrics
+    const completed = metricsData.length;
     
-    // Calculate total delta IPP
-    const totalDeltaIpp = data.reduce((sum, r) => sum + Number(r.delta_ipp || 0), 0);
-    const totalDeltaIppFormatted = totalDeltaIpp.toFixed(1);
+    // Sum actual IPP scores from calculations
+    const totalIpp = metricsData.reduce((sum, r) => {
+      const ipp = Number(r.ipp_score) || 0;
+      return sum + ipp;
+    }, 0);
 
-    // Calculate streak: Check today first, then count backwards consecutive days
-    // CRITICAL FIX: Use date-only comparison (YYYY-MM-DD) to avoid timezone issues
-    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-    
-    const daysWithFeedback = new Set<string>();
-    data.forEach((r) => {
-      // Validate date before processing
-      const date = new Date(r.recorded_at);
-      if (isNaN(date.getTime())) {
-        requestLogger.warn({ recorded_at: r.recorded_at }, "Invalid date in feedback record, skipping");
-        return;
+    // Calculate average TAA score
+    const taaScores = metricsData.filter(r => r.taa_score !== null).map(r => Number(r.taa_score));
+    const avgTAA = taaScores.length > 0
+      ? (taaScores.reduce((sum, score) => sum + score, 0) / taaScores.length)
+      : 0;
+
+    // Calculate streak
+    const today = new Date().toISOString().split("T")[0];
+    const daysWithMetrics = new Set<string>();
+    metricsData.forEach((r) => {
+      const date = new Date(r.completed_at);
+      if (!isNaN(date.getTime())) {
+        daysWithMetrics.add(date.toISOString().split("T")[0]);
       }
-      const dateOnly = date.toISOString().split("T")[0];
-      daysWithFeedback.add(dateOnly);
     });
 
     let streak = 0;
-    if (daysWithFeedback.has(today)) {
+    if (daysWithMetrics.has(today)) {
       streak = 1;
-      
-      // Count backwards consecutive days
       let checkDate = new Date(today);
       checkDate.setDate(checkDate.getDate() - 1);
-      
-      while (daysWithFeedback.has(checkDate.toISOString().split("T")[0])) {
+      while (daysWithMetrics.has(checkDate.toISOString().split("T")[0])) {
         streak++;
         checkDate.setDate(checkDate.getDate() - 1);
       }
     }
 
-    requestLogger.debug({ profileId, completed, totalDeltaIpp: totalDeltaIppFormatted, streak }, "Stats calculated");
+    // Get recent steps (top 5) with step descriptions and metrics
+    // GAP FIX: Include step_description from JOIN with null safety
+    const recentSteps = metricsData.slice(0, 5).map(m => {
+      const activeStepData = (m as any).active_steps;
+      const stepDescription = activeStepData?.step_description || "[Step description unavailable]";
+      const signature = activeStepData?.signature || "";
+      
+      return {
+        stepDescription: stepDescription.substring(0, 100), // Truncate for API response
+        signature,
+        ipp: Number(m.ipp_score || 0).toFixed(1),
+        but: Number(m.but_score || 0).toFixed(2),
+        magnitude: m.magnitude || 0,
+        reach: m.reach || 0,
+        depth: Number(m.depth || 0).toFixed(1),
+        completedAt: m.completed_at,
+      };
+    });
+
+    requestLogger.debug({ 
+      profileId, 
+      completed, 
+      totalIpp: totalIpp.toFixed(1), 
+      avgTAA: avgTAA.toFixed(2),
+      streak 
+    }, "Stats calculated from step_metrics");
 
     return res.json({
       completed,
-      totalDeltaIpp: totalDeltaIppFormatted,
+      totalIpp: totalIpp.toFixed(1),
+      avgTAA: avgTAA.toFixed(2),
       streak,
+      recentSteps,
     });
   } catch (error) {
     requestLogger.error({ profileId, error: (error as Error).message }, "Stats calculation failed");
     // Graceful degradation: Return zeros on error
     return res.json({
       completed: 0,
-      totalDeltaIpp: "0.0",
+      totalIpp: "0.0",
+      avgTAA: "0.0",
       streak: 0,
+      recentSteps: [],
     });
   }
 }));

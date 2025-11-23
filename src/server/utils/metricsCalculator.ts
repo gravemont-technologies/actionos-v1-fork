@@ -378,3 +378,48 @@ export async function getMetricsHistory(
   
   return data || [];
 }
+
+/**
+ * Map delta_bucket (from LLM response) to estimated metric components
+ * These are conservative estimates used for prediction before actual completion
+ */
+export interface EstimatedComponents {
+  magnitude: number; // 1-10
+  reach: number; // people impacted
+  depth: number; // 0.1-3.0
+  estimatedMinutes: number;
+}
+
+export function mapDeltaBucketToComponents(bucket: string): EstimatedComponents {
+  switch (bucket.toUpperCase()) {
+    case "SMALL":
+      return {
+        magnitude: 3,
+        reach: 1,
+        depth: 0.5,
+        estimatedMinutes: 15,
+      };
+    case "MEDIUM":
+      return {
+        magnitude: 6,
+        reach: 3,
+        depth: 1.0,
+        estimatedMinutes: 45,
+      };
+    case "LARGE":
+      return {
+        magnitude: 9,
+        reach: 10,
+        depth: 1.5,
+        estimatedMinutes: 120,
+      };
+    default:
+      // Default to SMALL if unknown
+      return {
+        magnitude: 3,
+        reach: 1,
+        depth: 0.5,
+        estimatedMinutes: 15,
+      };
+  }
+}

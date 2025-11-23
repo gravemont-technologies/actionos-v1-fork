@@ -16,6 +16,7 @@ import { ProfileStore } from "../store/profileStore.js";
 import { getProfileStore, getSignatureCache } from "../store/singletons.js";
 import { computeServerSignature, verifySignature } from "../utils/signature.js";
 import { clerkAuthMiddleware } from "../middleware/clerkAuth.js";
+import { ensureProfile } from "../middleware/ensureProfile.js";
 import { validateOwnership } from "../middleware/validateOwnership.js";
 import { analyzeRateLimiter } from "../middleware/rateLimiter.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
@@ -28,6 +29,7 @@ const router = Router();
 
 // Apply middleware to analyze route
 router.use(clerkAuthMiddleware);
+router.use(ensureProfile); // Auto-create profile if doesn't exist
 router.use(analyzeRateLimiter);
 router.use(longTimeoutMiddleware); // LLM calls need longer timeout
 
@@ -216,15 +218,20 @@ router.post("/", validateOwnership, asyncHandler(async (req, res, next) => {
     // Set active step after successful analysis (CRITICAL for Dashboard workflow)
     if (finalPayload.immediate_steps[0] && profileStore) {
       try {
+        // GAP FIX: Extract delta_bucket from LLM response and store in active_steps
+        const deltaBucket = finalPayload.immediate_steps[0].delta_bucket;
+        
         await profileStore.setActiveStep(
           payload.profileId,
           normalized.signature,
-          finalPayload.immediate_steps[0].step
+          finalPayload.immediate_steps[0].step,
+          deltaBucket // Store for later use in feedback route (eliminates cache dependency)
         );
         requestLogger.debug({ 
           profileId: payload.profileId, 
           signature: normalized.signature,
-          stepDescription: finalPayload.immediate_steps[0].step.substring(0, 50)
+          stepDescription: finalPayload.immediate_steps[0].step.substring(0, 50),
+          deltaBucket
         }, "Active step set successfully");
       } catch (error) {
         // Log but don't fail the request - active step is important but not critical

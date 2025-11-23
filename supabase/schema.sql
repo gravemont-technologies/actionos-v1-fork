@@ -173,9 +173,11 @@ CREATE TABLE IF NOT EXISTS active_steps (
     CHECK (LENGTH(signature) >= 32 AND signature ~ '^[a-f0-9]+$'),
   step_description TEXT NOT NULL 
     CHECK (LENGTH(step_description) > 0),
+  delta_bucket TEXT CHECK (delta_bucket IN ('SMALL', 'MEDIUM', 'LARGE')), -- LLM prediction, stored to avoid cache dependency
   -- Timestamps
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   started_at TIMESTAMPTZ DEFAULT NOW(), -- When Step-1 was set (for timer tracking)
+  first_started_at TIMESTAMPTZ DEFAULT NOW(), -- Never overwritten - used for accurate TAA calculation
   completed_at TIMESTAMPTZ, -- NULL = active, NOT NULL = completed
   -- Outcome (updated when step is completed)
   outcome TEXT
@@ -200,6 +202,9 @@ CREATE INDEX IF NOT EXISTS idx_active_steps_profile_signature
 -- Index for timer queries (abandonment tracking)
 CREATE INDEX IF NOT EXISTS idx_active_steps_started_at 
   ON active_steps(started_at);
+CREATE INDEX IF NOT EXISTS idx_active_steps_delta_bucket 
+  ON active_steps(delta_bucket) 
+  WHERE delta_bucket IS NOT NULL; -- Partial index for analytics queries
 
 -- ============================================================================
 -- FEEDBACK RECORDS TABLE (Historical Feedback)

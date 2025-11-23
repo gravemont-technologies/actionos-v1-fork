@@ -245,11 +245,22 @@ export class ProfileStore {
   async setActiveStep(
     profileId: string,
     signature: string,
-    stepDescription: string
+    stepDescription: string,
+    deltaBucket?: string // GAP FIX: Store delta_bucket from LLM response
   ): Promise<void> {
     const startTime = Date.now();
     try {
       const supabase = getSupabaseClient();
+
+      // CRITICAL FIX: Check if active step exists to preserve first_started_at
+      const { data: existing } = await supabase
+        .from("active_steps")
+        .select("first_started_at")
+        .eq("profile_id", profileId)
+        .maybeSingle();
+
+      const now = new Date().toISOString();
+      const firstStartedAt = existing?.first_started_at || now;
 
       // Atomic upsert: use Supabase's upsert with onConflict to handle UNIQUE constraint
       // This prevents race conditions between delete and insert operations
@@ -261,7 +272,9 @@ export class ProfileStore {
               profile_id: profileId,
               signature,
               step_description: stepDescription,
-              started_at: new Date().toISOString(), // Set started_at when Step-1 is created
+              delta_bucket: deltaBucket || null, // Store LLM prediction
+              started_at: now, // Current timestamp (may be reset on re-analyze)
+              first_started_at: firstStartedAt, // Preserve first start time for accurate TAA
               completed_at: null,
               outcome: null,
             },
