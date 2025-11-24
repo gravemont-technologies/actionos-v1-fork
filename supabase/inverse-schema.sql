@@ -1,9 +1,12 @@
 -- ============================================================================
--- INVERSE SCHEMA - Complete Teardown Script
+-- INVERSE SCHEMA - Complete Teardown Script (FINAL VERSION)
 -- ============================================================================
 -- This script DESTROYS everything created by schema.sql
 -- Use with extreme caution - this will delete all data and schema objects
 -- Run this to completely reset the database before applying schema.sql
+--
+-- FINAL VERSION: Includes all tables from consolidated schema.sql
+-- No separate migrations needed - everything is in the main schema
 -- ============================================================================
 
 -- Drop triggers first (depend on functions)

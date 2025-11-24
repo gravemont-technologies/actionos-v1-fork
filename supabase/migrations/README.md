@@ -1,22 +1,34 @@
 # Database Migrations
 
-## Overview
+## ⚠️ DEPRECATED - Migrations Consolidated
 
-This directory contains SQL migration files for the ActionOS database schema evolution.
+**IMPORTANT**: As of the FINAL VERSION of `schema.sql`, all migrations have been consolidated into the main schema file. These migration files are now **deprecated** and should not be used.
 
-## Migration Files
+The main `schema.sql` now includes:
+- All metrics system tables (`step_metrics`, `user_daily_metrics`)
+- All feedback system enhancements
+- All timer and delta bucket fixes
+- All insights and signature cache enhancements
 
-### `001_add_metrics_system.sql`
-**Purpose**: Adds comprehensive metrics tracking system (IPP, BUT, RSI, etc.)
+**For new installations**: Use only `../schema.sql`
+**For existing databases**: The schema is backward compatible - no migration needed
 
-**Tables Added**:
-- `step_metrics` - Individual Step-1 completion metrics
-- `user_daily_metrics` - Daily aggregated metrics per user
+---
 
-**Indexes Added**:
-- Profile + date lookups
-- Signature lookups
-- Step ID references
+## Legacy Migration Files (DEPRECATED)
+
+### `001_add_metrics_system.sql` - ✅ CONSOLIDATED
+**Status**: Tables now included in main `schema.sql`
+**Purpose**: Added comprehensive metrics tracking system (IPP, BUT, RSI, etc.)
+
+### `001_rollback_metrics_system.sql` - ✅ OBSOLETE
+**Status**: Use `../inverse-schema.sql` for complete teardown
+
+### `002_add_feedback_comments.sql` - ✅ CONSOLIDATED
+**Status**: Tables now included in main `schema.sql`
+
+### `003_fix_timer_and_delta_bucket.sql` - ✅ CONSOLIDATED
+**Status**: Fixes now included in main `schema.sql`
 
 **Run After**: Main `schema.sql` has been applied
 
