@@ -25,6 +25,9 @@ type CacheEntry = {
 
 export class SignatureCache {
   private readonly ttlMs = 24 * 60 * 60 * 1000;
+  // In-memory cache to reduce DB lookups (bounded + TTL)
+  private readonly memoryCache = new Map<string, { entry: CacheEntry; expiresAt: number }>();
+  private readonly maxMemoryEntries = 2000;
 
   /**
    * Extract title from summary text
@@ -63,6 +66,14 @@ export class SignatureCache {
     signature: string,
     options?: { includeSaved?: boolean; userId?: string }
   ): Promise<CacheEntry | null> {
+    // 1) Try in-memory cache first
+    const mem = this.memoryCache.get(signature);
+    if (mem && mem.expiresAt > Date.now()) {
+      return mem.entry;
+    } else if (mem) {
+      // expired
+      this.memoryCache.delete(signature);
+    }
     const startTime = Date.now();
     try {
       const supabase = getSupabaseClient();
@@ -238,6 +249,19 @@ export class SignatureCache {
 
       const duration = Date.now() - startTime;
       logger.debug({ signature: entry.signature, duration }, "Cache set completed");
+      // Populate in-memory cache (best-effort)
+      try {
+        const expiresAtMs = options?.expiresAt ? new Date(options.expiresAt).getTime() : Date.now() + this.ttlMs;
+        // Keep cache bounded
+        if (this.memoryCache.size >= this.maxMemoryEntries) {
+          // Simple eviction: delete a random key (keeps implementation simple and deterministic isn't required)
+          const firstKey = this.memoryCache.keys().next().value;
+          if (firstKey) this.memoryCache.delete(firstKey);
+        }
+        this.memoryCache.set(entry.signature, { entry: { ...entry, createdAt: Date.now() }, expiresAt: expiresAtMs });
+      } catch (err) {
+        // non-fatal
+      }
     } catch (error) {
       const duration = Date.now() - startTime;
       logger.error({ signature: entry.signature, error, duration }, "Cache set failed");

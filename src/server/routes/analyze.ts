@@ -23,6 +23,7 @@ import { asyncHandler } from "../middleware/asyncHandler.js";
 import { longTimeoutMiddleware } from "../middleware/timeout.js";
 import { ValidationError, ExternalServiceError, RateLimitError } from "../middleware/errorHandler.js";
 import { logger } from "../utils/logger.js";
+import { trackSignatureFailure, track401, trackCacheHit, trackCacheMiss, trackAnalyzeLatency } from "../utils/observability.js";
 import { getProfileMetrics } from "../utils/metricsCalculator.js";
 
 const router = Router();
@@ -94,6 +95,8 @@ router.post("/", validateOwnership, asyncHandler(async (req, res, next) => {
 
   if (!verifySignature(payload, incomingSig)) {
     requestLogger.warn({ incomingSigPresent: !!incomingSig }, "Invalid or missing signature for analyze request");
+    trackSignatureFailure(incomingSig ? "mismatch" : "missing");
+    track401("/api/analyze");
     return res.status(401).json({ error: "Invalid or missing signature" });
   }
 
@@ -128,6 +131,7 @@ router.post("/", validateOwnership, asyncHandler(async (req, res, next) => {
       guardedResponse.meta.rsi = metrics.rsi;
     }
     
+    trackCacheHit();
     trackEvent("analyze.response", {
       profileId: payload.profileId,
       signature: normalized.signature,
@@ -175,6 +179,8 @@ router.post("/", validateOwnership, asyncHandler(async (req, res, next) => {
       feedbackContext,
     });
 
+    trackCacheMiss();
+    const llmStart = Date.now();
     const raw = await llmProvider.complete({
       system: prompt.system,
       user: prompt.user,
@@ -182,6 +188,8 @@ router.post("/", validateOwnership, asyncHandler(async (req, res, next) => {
       maxTokens: 1000, // Increased from 180 to 1000 to allow complete JSON responses
       userId: res.locals.userId ?? null, // Pass userId for token tracking
     });
+
+    trackAnalyzeLatency(Date.now() - llmStart);
 
     // Parse and validate with proper error handling
     let parsedResponse;

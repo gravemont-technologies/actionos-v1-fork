@@ -6,6 +6,7 @@ import { ValidationError } from "../middleware/errorHandler.js";
 import { recordStepMetrics, getProfileMetrics, getMetricsHistory } from "../utils/metricsCalculator.js";
 import { logger } from "../utils/logger.js";
 import { getSupabaseClient } from "../db/supabase.js";
+import obs from "../utils/observability.js";
 
 const router = Router();
 
@@ -129,3 +130,13 @@ router.get("/history/:profileId", validateOwnership, async (req, res, next) => {
 });
 
 export default router;
+
+// Internal observability endpoint (authenticated)
+router.get("/internal", async (req, res) => {
+  try {
+    res.json({ metrics: obs.getAll() });
+  } catch (error) {
+    logger.error({ error }, "Failed to fetch internal observability metrics");
+    res.status(500).json({ error: "failed_to_get_metrics" });
+  }
+});
