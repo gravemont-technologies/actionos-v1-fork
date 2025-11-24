@@ -17,7 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, user_id, created_at')
+      .select('profile_id, user_id, created_at')
       .eq('user_id', userId)
       .maybeSingle();
 
@@ -29,7 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.json({
       authenticated: true,
       hasProfile: !!data,
-      profileId: data?.id || null,
+      profileId: data?.profile_id || null,
       userId,
     });
   } catch (err: any) {

@@ -18,23 +18,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Check if profile already exists
     const { data: existing } = await supabase
       .from('profiles')
-      .select('id')
+      .select('profile_id')
       .eq('user_id', userId)
       .maybeSingle();
 
     if (existing) {
       return res.json({ 
-        profileId: existing.id,
+        profileId: existing.profile_id,
         created: false,
         message: 'Profile already exists' 
       });
     }
 
-    // Create new profile
+    // Create new profile with generated profile_id
+    const profileId = crypto.randomUUID().replace(/-/g, '').substring(0, 16);
+    
     const { data: profile, error } = await supabase
       .from('profiles')
-      .insert({ user_id: userId })
-      .select('id')
+      .insert({ 
+        profile_id: profileId,
+        user_id: userId 
+      })
+      .select('profile_id')
       .single();
 
     if (error) {
@@ -46,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     return res.status(201).json({
-      profileId: profile.id,
+      profileId: profile.profile_id,
       created: true,
       message: 'Profile created successfully'
     });
