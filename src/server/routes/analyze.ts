@@ -82,7 +82,18 @@ router.post("/", validateOwnership, asyncHandler(async (req, res, next) => {
     resources: parsed.data.resources ?? "",
   };
 
-  if (!verifySignature(payload, req.header("x-signature"))) {
+  // Debug: capture incoming signature and expected prefix for troubleshooting
+  const incomingSig = req.header("x-signature") ?? null;
+  const expectedSig = computeServerSignature(payload);
+  requestLogger.debug({
+    incomingSigPrefix: incomingSig ? String(incomingSig).slice(0, 8) : null,
+    expectedSigPrefix: expectedSig.slice(0, 8),
+    userId: res.locals.userId,
+    profileId: payload.profileId,
+  }, "Signature verification inputs");
+
+  if (!verifySignature(payload, incomingSig)) {
+    requestLogger.warn({ incomingSigPresent: !!incomingSig }, "Invalid or missing signature for analyze request");
     return res.status(401).json({ error: "Invalid or missing signature" });
   }
 

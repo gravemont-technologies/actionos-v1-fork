@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { verifyRequest } from '../_lib/verify';
 import { createClient } from '@supabase/supabase-js';
+import { randomUUID } from 'crypto';
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -30,23 +31,64 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Create new profile with generated profile_id
-    const profileId = crypto.randomUUID().replace(/-/g, '').substring(0, 16);
+    // Generate full UUID v4 for profile_id (low collision probability)
+    const profileId = randomUUID();
     
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .insert({ 
-        profile_id: profileId,
-        user_id: userId 
-      })
-      .select('profile_id')
-      .single();
+    // Retry logic for handling rare race conditions
+    const maxRetries = 3;
+    let attempt = 0;
+    let profile = null;
+    let insertError = null;
 
-    if (error) {
-      console.error('[auth/create-profile] Insert error:', error);
+    while (attempt < maxRetries) {
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert({ 
+          profile_id: profileId,
+          user_id: userId 
+        })
+        .select('profile_id')
+        .single();
+
+      if (!error) {
+        profile = data;
+        break;
+      }
+
+      // Handle unique constraint violation - profile might have been created concurrently
+      if (error.code === '23505') {
+        console.warn(`[auth/create-profile] Conflict on attempt ${attempt + 1}, retrying...`);
+        
+        // Re-check if profile exists now
+        const { data: recheck } = await supabase
+          .from('profiles')
+          .select('profile_id')
+          .eq('user_id', userId)
+          .maybeSingle();
+        
+        if (recheck) {
+          return res.json({
+            profileId: recheck.profile_id,
+            created: false,
+            message: 'Profile already exists (created concurrently)'
+          });
+        }
+      }
+
+      insertError = error;
+      attempt++;
+      
+      // Exponential backoff: 50ms, 100ms, 200ms
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 50 * Math.pow(2, attempt - 1)));
+      }
+    }
+
+    if (!profile) {
+      console.error('[auth/create-profile] Insert failed after retries:', insertError);
       return res.status(500).json({ 
         error: 'PROFILE_CREATE_FAILED',
-        detail: error.message 
+        detail: insertError?.message || 'Unknown error after retries'
       });
     }
 
