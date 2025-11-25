@@ -17,6 +17,8 @@ export function Nav() {
   
   // Check if Clerk is configured
   const hasClerkKey = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+  // Use VITE_API_URL for backend API base, fallback to localhost
+  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
   const appUrl = import.meta.env.VITE_FRONTEND_URL || "http://localhost:3000";
 
   return (
