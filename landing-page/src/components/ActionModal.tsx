@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar, Mail, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { postAnalyze } from "@/lib/api";
 
 interface ActionModalProps {
   open: boolean;
@@ -34,20 +35,27 @@ export function ActionModal({ open, onOpenChange }: ActionModalProps) {
 
     setIsProcessing(true);
 
-    // Simulate processing
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // Prefill based on channel
-    const prefillData = {
-      calendar: `Action Session: ${situation.slice(0, 50)}...`,
-      email: `Subject: Action Request\n\nSituation: ${situation}`,
-      slack: `New action request: ${situation}`,
-    };
-
-    toast({
-      title: `${channel.charAt(0).toUpperCase() + channel.slice(1)} prefilled`,
-      description: prefillData[channel],
-    });
+    try {
+      // Example payload, adapt as needed for your workflow
+      const payload = {
+        profile_id: "demo-profile-id", // TODO: Replace with real user/profile id
+        situation,
+        goal: "", // TODO: Add goal input if needed
+        constraints: "", // TODO: Add constraints input if needed
+        current_steps: "", // TODO: Add steps input if needed
+      };
+      const result = await postAnalyze(payload);
+      toast({
+        title: "Action generated!",
+        description: JSON.stringify(result),
+      });
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: (err as Error).message,
+        variant: "destructive",
+      });
+    }
 
     setIsProcessing(false);
     setSituation("");
