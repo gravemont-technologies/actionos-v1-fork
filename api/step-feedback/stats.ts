@@ -1,13 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { z } from 'zod';
-
-import { getSupabaseClient } from './lib/supabase';
-import { validateEnvVars } from './lib/validateEnvVars';
-// ...existing code...
-
-const statsSchema = z.object({
-  profile_id: z.string().min(1).max(100).trim(),
-});
+import { getSupabaseClient } from '../lib/supabase';
+import { validateEnvVars } from '../lib/validateEnvVars';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
@@ -15,18 +8,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (e) {
     return res.status(500).json({ error: 'Missing environment variables', details: (e as Error).message });
   }
-  if (req.method !== 'POST') {
+  if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
-
-  const parsed = statsSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.message });
+  const profile_id = req.query.profile_id as string;
+  if (!profile_id) {
+    return res.status(400).json({ error: 'Missing profile_id' });
   }
-
-  // Minimal business logic: return basic stats for the profile
   const supabase = getSupabaseClient();
-  const { profile_id } = parsed.data;
   // Count completed feedback records
   const { count } = await supabase
     .from('feedback_records')

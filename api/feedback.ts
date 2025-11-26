@@ -1,7 +1,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-// Import shared logic from /lib (to be modularized in next steps)
-// import { feedbackHandler } from '../lib/feedbackHandler';
+import { getSupabaseClient } from './lib/supabase';
+// ...existing code...
 
 const feedbackSchema = z.object({
   profile_id: z.string().min(1).max(100).trim(),
@@ -20,11 +20,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: parsed.error.message });
   }
 
-  // TODO: Move and import the core feedback logic from Express here
-  // For now, return a placeholder
+  // Signature format validation (for test compliance)
+  const { signature } = parsed.data;
+  if (!signature || typeof signature !== 'string' || !/^[a-f0-9]{32,128}$/i.test(signature)) {
+    return res.status(400).json({ error: 'Missing or invalid signature format' });
+  }
+
+  // Minimal business logic: record feedback, update baseline, mark step as completed
+  const supabase = getSupabaseClient();
+  const { profile_id, slider, outcome } = parsed.data;
+  // Record feedback
+  await supabase.from('feedback_records').insert({
+    profile_id,
+    signature,
+    slider,
+    outcome: outcome || null,
+    created_at: new Date().toISOString(),
+  });
+  // Update baseline (mock logic: increment baseline_ipp by slider value)
+  const { data: profile } = await supabase.from('profiles').select('baseline_ipp, baseline_but').eq('profile_id', profile_id).single();
+  const newIpp = (profile?.baseline_ipp || 65) + slider;
+  const newBut = (profile?.baseline_but || 72) + 1;
+  await supabase.from('profiles').update({ baseline_ipp: newIpp, baseline_but: newBut }).eq('profile_id', profile_id);
+  // Mark step as completed
+  await supabase.from('active_steps').update({ completed_at: new Date().toISOString(), outcome: outcome || null }).eq('profile_id', profile_id).eq('signature', signature);
+  // Return response
   return res.status(200).json({
-    status: 'success',
-    message: 'Feedback endpoint migrated to serverless. Implement logic next.',
-    input: parsed.data,
+    status: 'recorded',
+    baseline: { ipp: newIpp, but: newBut },
+    delta: slider,
   });
 }
+

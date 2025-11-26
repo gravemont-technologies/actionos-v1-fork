@@ -1,6 +1,10 @@
 // Validate environment on startup
 import "dotenv/config";
 import "./config/env.js";
+import { validateEnvVars } from "./config/validateEnv.js";
+
+// Fail fast if required env vars are missing
+validateEnvVars();
 import express from "express";
 import { SignatureCache } from "./cache/signatureCache.js";
 import authRouter from "./routes/auth.js";
